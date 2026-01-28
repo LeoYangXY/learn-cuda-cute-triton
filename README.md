@@ -39,7 +39,7 @@ half2去处理fp16，一次性读取2个
 
 ### 📌 Activation Functions
 
-和elementwise里面的kernel几乎一致，不再写了
+和elementwise里面的kernel几乎一致，不再写了！！
 
 | 完成情况 | CUDA 内核 | 元素数据类型 | 累加数据类型 | 难度 |
 |:---|:---|:---|:---|:---|
