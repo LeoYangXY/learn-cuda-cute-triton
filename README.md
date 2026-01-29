@@ -95,7 +95,7 @@ half2去处理fp16，一次性读取2个
 
 
 ### 📌 Embedding Lookup
-
+ok!
 | 完成情况 | CUDA 内核 | 元素数据类型 | 累加数据类型 | 难度 |
 |:---|:---|:---|:---|:---|
 |  | embedding_f32 | f32 | / | ⭐️ |
@@ -105,6 +105,8 @@ half2去处理fp16，一次性读取2个
 |  | embedding_f16x2 | f16 | / | ⭐️ |
 |  | embedding_f16x8 | f16 | / | ⭐️ |
 |  | embedding_f16x8_pack | f16 | / | ⭐️⭐️ |
+
+完成了f32以及pack版本，已覆盖上述所有功能
 
 <!-- 
 - 
@@ -131,6 +133,8 @@ half2去处理fp16，一次性读取2个
 
 ### 📌 Matrix Transpose
 
+ok
+
 | 完成情况 | CUDA 内核 | 元素数据类型 | 累加数据类型 | 难度 |
 |:---|:---|:---|:---|:---|
 |  | mat_trans_f32_col2row{2d} | f32 | / | ⭐️ |
@@ -139,6 +143,8 @@ half2去处理fp16，一次性读取2个
 |  | mat_trans_f32x4_col2row{2d} | f32 | / | ⭐️⭐️ |
 |  | mat_trans_f32x4_row2col{2d} | f32 | / | ⭐️⭐️ |
 |  | mat_trans_cute | f32 | / | ⭐️⭐️ |
+
+已完成scaler，float4，使用shared_memory,避免bank conflict 4个版本
 
 <!-- 
 - 
