@@ -118,7 +118,7 @@ __global__ void max_kernel_shared_only(float* input, float* output, int N) {
 
 
 
-// 三种shfl函数讲解：
+// 几种shfl函数讲解：
 // T __shfl_xor_sync(
 //     unsigned mask,    // 参与线程的位掩码 (通常0xffffffff)
 //     T value,          // 要交换的值 (int/float)
@@ -156,6 +156,9 @@ __global__ void max_kernel_shared_only(float* input, float* output, int N) {
 // return (target_lane >= 0) ? 
 //        target_thread.value : 
 //        undefined; // 通常返回0或原值
+
+// __shfl_sync(mask, val, src)	
+// 广播：所有人都拿 src 线程的那个val的值
 
 
 //cuda编程的时候我们的视角是thread
