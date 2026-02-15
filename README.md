@@ -322,6 +322,7 @@ shared_memory+warp_shuffle,每个thread负责一个元素
 |  | hgemv_k128_f16x4 | f16 | f16 | ⭐️⭐️⭐️ |
 |  | hgemv_k16_f16 | f16 | f16 | ⭐️⭐️⭐️ |
 
+已完成sgemv，暂时不做half数据类型的
 <!-- 
 - 
 - 
@@ -366,6 +367,7 @@ shared_memory+warp_shuffle,每个thread负责一个元素
 |  | hgemm_mma_m16n8k16...swizzle{tn}{smem}* | f16 | f16 | ⭐️⭐️⭐️ |
 |  | hgemm_mma_stages_swizzle{smem}...cute* | f16 | f16 | ⭐️⭐️⭐️ |
 |  | hgemm_mma_cublas* | f16 | f16 | ⭐️⭐️ |
+
 
 <!-- 
 - 
