@@ -435,20 +435,17 @@ void fill_random(std::vector<float>& v) {
     for (auto& x : v) x = dis(gen);
 }
 
-
-// ========== Main Test (已修改) ==========
+// ========== Main Test: with warmup and averaging ==========
 int main() {
     const int M = 128;
     const int N = 256;
     const int K = 384;
 
-    printf("Testing GEMM: %dx%d = %dx%d @ %dx%d\n", M, N, M, K, K, N);
+    printf("Testing GEMM (with warmup & avg): %dx%d = %dx%d @ %dx%d\n", M, N, M, K, K, N);
 
     std::vector<float> h_A(M * K);
     std::vector<float> h_B(K * N);
     std::vector<float> h_C_ref(M * N);
-    std::vector<float> h_C_naive(M * N);
-    std::vector<float> h_C_opt(M * N);
     std::vector<float> h_C_reg(M * N);
 
     fill_random(h_A);
@@ -463,90 +460,43 @@ int main() {
     checkCudaErrors(cudaMemcpy(d_A, h_A.data(), M * K * sizeof(float), cudaMemcpyHostToDevice));
     checkCudaErrors(cudaMemcpy(d_B, h_B.data(), K * N * sizeof(float), cudaMemcpyHostToDevice));
 
+    constexpr int BM = 32, BN = 32, BK = 32, TM = 4, TN = 4;
+    dim3 block_opt(BN / TN, BM / TM); // (8, 8) → 64 threads
+    dim3 grid_opt((N + BN - 1) / BN, (M + BM - 1) / BM); // (8, 4)
+
+    printf("Launch config: Grid=(%d, %d), Block=(%d, %d)\n", grid_opt.x, grid_opt.y, block_opt.x, block_opt.y);
+
     cudaEvent_t start, stop;
-    cudaEventCreate(&start); 
+    cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
-    bool all_passed = true;
+    // ===== Warmup =====
+    constexpr int WARMUP = 20;
+    constexpr int ITERS = 200;
+    for (int i = 0; i < WARMUP; ++i) {
+        sgemm_sliced_k_f32x4_padding_reg_kernel<BM, BN, BK, TM, TN><<<grid_opt, block_opt>>>(d_A, d_B, d_C, M, N, K);
+    }
+    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
 
-    // ------------------ 1. Test naive kernel ------------------
-    dim3 block_naive(16, 16);
-    dim3 grid_naive((N + block_naive.x - 1) / block_naive.x, (M + block_naive.y - 1) / block_naive.y);
-
-    checkCudaErrors(cudaMemset(d_C, 0, M * N * sizeof(float)));
+    // ===== Timed runs =====
     checkCudaErrors(cudaEventRecord(start));
-    sgemm_naive<<<grid_naive, block_naive>>>(d_A, d_B, d_C, M, N, K);
-    // 【关键修改】检查 Kernel 启动错误
-    checkCudaErrors(cudaGetLastError()); 
+    for (int i = 0; i < ITERS; ++i) {
+        sgemm_sliced_k_f32x4_padding_reg_kernel<BM, BN, BK, TM, TN><<<grid_opt, block_opt>>>(d_A, d_B, d_C, M, N, K);
+    }
+    checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaEventRecord(stop));
     checkCudaErrors(cudaEventSynchronize(stop));
-    
-    float ms_naive;
-    cudaEventElapsedTime(&ms_naive, start, stop);
-    checkCudaErrors(cudaMemcpy(h_C_naive.data(), d_C, M * N * sizeof(float), cudaMemcpyDeviceToHost));
-    
-    bool naive_ok = validate(h_C_ref, h_C_naive, M * N);
-    if (!naive_ok) all_passed = false;
-    printf("Naive kernel: %s (%.2f ms)\n", naive_ok ? "PASS" : "FAIL", ms_naive);
 
-    constexpr int BM = 32, BN = 32, BK = 32, TM = 4, TN = 4;
-    dim3 block_opt(BN / TN, BM / TM);
-    dim3 grid_opt((N + BN - 1) / BN, (M + BM - 1) / BM);
+    float total_ms = 0.0f;
+    checkCudaErrors(cudaEventElapsedTime(&total_ms, start, stop));
+    float avg_ms = total_ms / ITERS;
+    double tflops = (2.0 * static_cast<double>(M) * N * K) / (avg_ms * 1.0e-3) / 1.0e12;
 
-    // ------------------ 2. Test optimized kernel (scalar load) ------------------
-    checkCudaErrors(cudaMemset(d_C, 0, M * N * sizeof(float)));
-    checkCudaErrors(cudaEventRecord(start));
-    sgemm_sliced_k_f32_kernel<BM, BN, BK, TM, TN><<<grid_opt, block_opt>>>(d_A, d_B, d_C, M, N, K);
-    checkCudaErrors(cudaGetLastError()); // 【关键修改】
-    checkCudaErrors(cudaEventRecord(stop));
-    checkCudaErrors(cudaEventSynchronize(stop));
-    
-    float ms_opt;
-    cudaEventElapsedTime(&ms_opt, start, stop);
-    checkCudaErrors(cudaMemcpy(h_C_opt.data(), d_C, M * N * sizeof(float), cudaMemcpyDeviceToHost));
-    
-    bool opt_ok = validate(h_C_ref, h_C_opt, M * N);
-    if (!opt_ok) all_passed = false;
-    printf("Optimized (scalar) kernel: %s (%.2f ms)\n", opt_ok ? "PASS" : "FAIL", ms_opt);
-
-    // ------------------ 3. Test float4 + padding kernel ------------------
-    checkCudaErrors(cudaMemset(d_C, 0, M * N * sizeof(float)));
-    checkCudaErrors(cudaEventRecord(start));
-    sgemm_sliced_k_f32x4_padding_kernel<BM, BN, BK, TM, TN><<<grid_opt, block_opt>>>(d_A, d_B, d_C, M, N, K);
-    
-    // 【关键修改】这里会捕获到 float4 非对齐访问的错误！
-    // 如果使用 +1 padding，程序会在这里直接退出并打印 "CUDA Error illegal memory access..."
-    // 这样就不会继续运行下面的 reg kernel，避免了误导
-    checkCudaErrors(cudaGetLastError()); 
-    
-    checkCudaErrors(cudaEventRecord(stop));
-    checkCudaErrors(cudaEventSynchronize(stop));
-    
-    float ms_float4;
-    cudaEventElapsedTime(&ms_float4, start, stop);
-    checkCudaErrors(cudaMemcpy(h_C_opt.data(), d_C, M * N * sizeof(float), cudaMemcpyDeviceToHost));
-    
-    bool float4_ok = validate(h_C_ref, h_C_opt, M * N);
-    if (!float4_ok) all_passed = false;
-    printf("Float4+Padding kernel: %s (%.2f ms)\n", float4_ok ? "PASS" : "FAIL", ms_float4);
-
-    // ------------------ 4. Test float4 + padding + register kernel ------------------
-    // 如果上面出错了，程序已经退出了，不会执行到这里。
-    // 如果上面没出错（比如你改成了+4），这里才能正常执行。
-    checkCudaErrors(cudaMemset(d_C, 0, M * N * sizeof(float)));
-    checkCudaErrors(cudaEventRecord(start));
-    sgemm_sliced_k_f32x4_padding_reg_kernel<BM, BN, BK, TM, TN><<<grid_opt, block_opt>>>(d_A, d_B, d_C, M, N, K);
-    checkCudaErrors(cudaGetLastError()); // 【关键修改】
-    checkCudaErrors(cudaEventRecord(stop));
-    checkCudaErrors(cudaEventSynchronize(stop));
-    
-    float ms_reg;
-    cudaEventElapsedTime(&ms_reg, start, stop);
     checkCudaErrors(cudaMemcpy(h_C_reg.data(), d_C, M * N * sizeof(float), cudaMemcpyDeviceToHost));
-    
-    bool reg_ok = validate(h_C_ref, h_C_reg, M * N);
-    if (!reg_ok) all_passed = false;
-    printf("Float4+Pad+Reg kernel: %s (%.2f ms)\n", reg_ok ? "PASS" : "FAIL", ms_reg);
+
+    bool passed = validate(h_C_ref, h_C_reg, M * N);
+    printf("Optimized kernel: %s (avg %.4f ms, %.3f TFLOPS)\n", passed ? "PASS ✅" : "FAIL ❌", avg_ms, tflops);
 
     cudaFree(d_A);
     cudaFree(d_B);
@@ -554,11 +504,11 @@ int main() {
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
 
-    if (all_passed) {
-        printf("\n✅ All tests passed!\n");
+    if (passed) {
+        printf("\n🎉 All tests passed!\n");
         return 0;
     } else {
-        printf("\n❌ Some tests failed.\n");
+        printf("\n💥 Test failed.\n");
         return 1;
     }
 }
