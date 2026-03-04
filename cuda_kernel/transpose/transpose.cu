@@ -41,10 +41,10 @@ __global__ void transpose_4float(float *dst, const float *src, int M, int N) {
 
 
 //合并访问（Coalesced Access）：
-// 当一个 warp（32 个线程） 同时访问全局内存时，如果它们访问的地址 落在同一个或连续的内存事务（memory transaction）中，就叫“合并访问”。
+// 当一个 warp（32 个线程） 同时访问全局内存时，如果它们访问的地址 落在同一个或连续的内存事务（memory transaction）中，就叫"合并访问"。
 // 反之，如果地址分散、跳跃，就需要多次内存事务 → 非合并（uncoalesced） → 性能暴跌。
 
-// ✅ 什么是“读合并”？（Coalesced Read）
+// ✅ 什么是"读合并"？（Coalesced Read）
 // 🎯 理想情况（完美合并）：
 // warp 中线程 tid = 0,1,2,...,31
 // 访问地址：ptr + 0, ptr + 1, ptr + 2, ..., ptr + 31（每个元素 4 字节）
@@ -57,7 +57,7 @@ __global__ void transpose_4float(float *dst, const float *src, int M, int N) {
 // ❌ 需要 32 次独立事务 → 带宽利用率 ≈ 1/32！
 
 
-// ✅ 什么是“写合并”？（Coalesced Write）
+// ✅ 什么是"写合并"？（Coalesced Write）
 // 逻辑和读一样！
 // 🎯 理想写合并：
 // 线程 0 写 dst[0]
@@ -199,7 +199,7 @@ __global__ void mat_transpose_shared_kernel(
 
 // 因此，计算bank_id的数学公式为：
 // byte_addr = 元素的字节偏移
-// word_index = byte_addr / 4          // 整数除法，即“第几个 4B 单元”
+// word_index = byte_addr / 4          // 整数除法，即"第几个 4B 单元"
 // bank_id = word_index % 32
 
 // 所以，在我们的tile中存储的元素为fp32的场景下：
@@ -251,145 +251,66 @@ __global__ void mat_transpose_shared_kernel_padding(
 }
 
 
+// ==================== Torch bindings ====================
+#include <torch/types.h>
+#include <torch/extension.h>
 
-// CPU reference transpose
-void cpu_transpose(const std::vector<float>& src, std::vector<float>& dst, int M, int N) {
-    dst.resize(N * M);
-    for (int i = 0; i < M; ++i) {
-        for (int j = 0; j < N; ++j) {
-            dst[j * M + i] = src[i * N + j];
-        }
-    }
+#define STRINGFY(str) #str
+#define TORCH_BINDING_COMMON_EXTENSION(func) \
+  m.def(STRINGFY(func), &func, STRINGFY(func));
+
+#define CHECK_TORCH_TENSOR_DTYPE(T, th_type)                 \
+  if (((T).options().dtype() != (th_type))) {                \
+    std::cout << "Tensor Info:" << (T).options() << std::endl; \
+    throw std::runtime_error("values must be " #th_type);    \
+  }
+
+#define CEIL(a,b) ((a+b-1)/(b))
+
+// src: [M, N] -> dst: [N, M]
+torch::Tensor torch_transpose_naive(torch::Tensor src) {
+    CHECK_TORCH_TENSOR_DTYPE(src, torch::kFloat32);
+    int M = src.size(0), N = src.size(1);
+    auto dst = torch::empty({N, M}, src.options());
+    dim3 block(16, 16);
+    dim3 grid(CEIL(M, 16), CEIL(N, 16));
+    naive_transpose<<<grid, block>>>(dst.data_ptr<float>(), src.data_ptr<float>(), M, N);
+    return dst;
 }
 
-// Check correctness
-bool check_correctness(const std::vector<float>& gpu_result, const std::vector<float>& cpu_ref, int size) {
-    const float eps = 1e-5f;
-    for (int i = 0; i < size; ++i) {
-        if (std::abs(gpu_result[i] - cpu_ref[i]) > eps) {
-            printf("Mismatch at %d: GPU=%f, CPU=%f\n", i, gpu_result[i], cpu_ref[i]);
-            return false;
-        }
-    }
-    return true;
+torch::Tensor torch_transpose_4float(torch::Tensor src) {
+    CHECK_TORCH_TENSOR_DTYPE(src, torch::kFloat32);
+    int M = src.size(0), N = src.size(1);
+    auto dst = torch::empty({N, M}, src.options());
+    dim3 block(16, 16);
+    dim3 grid(CEIL(M, 16), CEIL(N, 4 * 16));
+    transpose_4float<<<grid, block>>>(dst.data_ptr<float>(), src.data_ptr<float>(), M, N);
+    return dst;
 }
 
-// Timing helper
-float time_kernel(cudaEvent_t start, cudaEvent_t stop, dim3 grid, dim3 block, 
-                  void (*kernel)(float*, const float*, int, int),
-                  float* d_dst, const float* d_src, int M, int N) {
-    cudaEventRecord(start);
-    kernel<<<grid, block>>>(d_dst, d_src, M, N);
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    float milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, start, stop);
-    return milliseconds;
+torch::Tensor torch_transpose_shared(torch::Tensor src) {
+    CHECK_TORCH_TENSOR_DTYPE(src, torch::kFloat32);
+    int M = src.size(0), N = src.size(1);
+    auto dst = torch::empty({N, M}, src.options());
+    dim3 block(TILE_SIZE, TILE_SIZE);
+    dim3 grid(CEIL(N, TILE_SIZE), CEIL(M, TILE_SIZE));
+    mat_transpose_shared_kernel<<<grid, block>>>(dst.data_ptr<float>(), src.data_ptr<float>(), M, N);
+    return dst;
 }
-int main() {
-    // Matrix dimensions
-    const int M = 10240;
-    const int N = 20480;
 
-    printf("Testing matrix transpose: M=%d, N=%d\n", M, N);
+torch::Tensor torch_transpose_shared_padding(torch::Tensor src) {
+    CHECK_TORCH_TENSOR_DTYPE(src, torch::kFloat32);
+    int M = src.size(0), N = src.size(1);
+    auto dst = torch::empty({N, M}, src.options());
+    dim3 block(TILE_SIZE, TILE_SIZE);
+    dim3 grid(CEIL(N, TILE_SIZE), CEIL(M, TILE_SIZE));
+    mat_transpose_shared_kernel_padding<<<grid, block>>>(dst.data_ptr<float>(), src.data_ptr<float>(), M, N);
+    return dst;
+}
 
-    // Host data
-    std::vector<float> h_src(M * N);
-    std::srand(42);
-    for (int i = 0; i < M * N; ++i) {
-        h_src[i] = static_cast<float>(rand()) / RAND_MAX;
-    }
-
-    std::vector<float> h_dst_cpu;
-    cpu_transpose(h_src, h_dst_cpu, M, N);
-
-    // Device memory
-    float *d_src = nullptr, *d_dst = nullptr;
-    cudaMalloc(&d_src, M * N * sizeof(float));
-    cudaMalloc(&d_dst, N * M * sizeof(float));
-    cudaMemcpy(d_src, h_src.data(), M * N * sizeof(float), cudaMemcpyHostToDevice);
-
-    // Events for timing
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-
-    bool all_passed = true;
-
-    // -----------------------------
-    // 1. naive_transpose
-    // -----------------------------
-    {
-        dim3 blockSize(16, 16);
-        dim3 gridSize((M + blockSize.x - 1) / blockSize.x,
-                      (N + blockSize.y - 1) / blockSize.y);
-        float ms = time_kernel(start, stop, gridSize, blockSize, naive_transpose, d_dst, d_src, M, N);
-        std::vector<float> h_result(N * M);
-        cudaMemcpy(h_result.data(), d_dst, N * M * sizeof(float), cudaMemcpyDeviceToHost);
-        bool ok = check_correctness(h_result, h_dst_cpu, N * M);
-        printf("[naive_transpose] Time: %.3f ms | Correct: %s\n", ms, ok ? "YES" : "NO");
-        if (!ok) all_passed = false;
-    }
-
-    // -----------------------------
-    // 2. transpose_4float
-    // -----------------------------
-    {
-        dim3 blockSize(16, 16);
-        dim3 gridSize((M + blockSize.x - 1) / blockSize.x,
-                      (N + 4 * blockSize.y - 1) / (4 * blockSize.y));
-        float ms = time_kernel(start, stop, gridSize, blockSize, transpose_4float, d_dst, d_src, M, N);
-        std::vector<float> h_result(N * M);
-        cudaMemcpy(h_result.data(), d_dst, N * M * sizeof(float), cudaMemcpyDeviceToHost);
-        bool ok = check_correctness(h_result, h_dst_cpu, N * M);
-        printf("[transpose_4float] Time: %.3f ms | Correct: %s\n", ms, ok ? "YES" : "NO");
-        if (!ok) all_passed = false;
-    }
-
-    // -----------------------------
-    // 3. shared memory (no padding)
-    // -----------------------------
-    {
-        const int TILE = 32;
-        dim3 blockSize(TILE, TILE);
-        dim3 gridSize((N + TILE - 1) / TILE,
-                      (M + TILE - 1) / TILE);
-        float ms = time_kernel(start, stop, gridSize, blockSize, mat_transpose_shared_kernel, d_dst, d_src, M, N);
-        std::vector<float> h_result(N * M);
-        cudaMemcpy(h_result.data(), d_dst, N * M * sizeof(float), cudaMemcpyDeviceToHost);
-        bool ok = check_correctness(h_result, h_dst_cpu, N * M);
-        printf("[shared_no_pad] Time: %.3f ms | Correct: %s\n", ms, ok ? "YES" : "NO");
-        if (!ok) all_passed = false;
-    }
-
-    // -----------------------------
-    // 4. shared memory with padding
-    // -----------------------------
-    {
-        const int TILE = 32;
-        dim3 blockSize(TILE, TILE);
-        dim3 gridSize((N + TILE - 1) / TILE,
-                      (M + TILE - 1) / TILE);
-        float ms = time_kernel(start, stop, gridSize, blockSize, mat_transpose_shared_kernel_padding, d_dst, d_src, M, N);
-        std::vector<float> h_result(N * M);
-        cudaMemcpy(h_result.data(), d_dst, N * M * sizeof(float), cudaMemcpyDeviceToHost);
-        bool ok = check_correctness(h_result, h_dst_cpu, N * M);
-        printf("[shared_padding] Time: %.3f ms | Correct: %s\n", ms, ok ? "YES" : "NO");
-        if (!ok) all_passed = false;
-    }
-
-    // Cleanup
-    cudaFree(d_src);
-    cudaFree(d_dst);
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
-
-    if (all_passed) {
-        printf("\n✅ All tests passed!\n");
-    } else {
-        printf("\n❌ Some tests failed!\n");
-        return 1;
-    }
-
-    return 0;
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+    TORCH_BINDING_COMMON_EXTENSION(torch_transpose_naive)
+    TORCH_BINDING_COMMON_EXTENSION(torch_transpose_4float)
+    TORCH_BINDING_COMMON_EXTENSION(torch_transpose_shared)
+    TORCH_BINDING_COMMON_EXTENSION(torch_transpose_shared_padding)
 }

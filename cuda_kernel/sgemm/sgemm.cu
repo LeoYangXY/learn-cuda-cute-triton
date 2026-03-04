@@ -133,7 +133,7 @@ __global__ void sgemm_sliced_k_f32_kernel(float *a, float *b, float *c, int M,
     // - s_a[row][col] 的线性索引 index = row * BK + col
     // - 因为里面的元素是float形式，因此任意一个元素的地址是 address = 4 * index
     // - 所以任意一个元素所属的 bank = (row * BK + col) % 32
-    // 对于此就可以进行直观的解读了：同一列 col 在不同 row 上会落到同一个 bank，所以 warp 内如果多线程同时访问“同一列不同 row”，就会发生 bank conflict
+    // 对于此就可以进行直观的解读了：同一列 col 在不同 row 上会落到同一个 bank，所以 warp 内如果多线程同时访问"同一列不同 row"，就会发生 bank conflict
     // 因此，4×4、2×8、1×16 的bank conflict严重程度不一样（虽然最好还是加一个padding去分配shared memory）
 
 
@@ -207,7 +207,7 @@ __global__ void sgemm_sliced_k_f32_kernel(float *a, float *b, float *c, int M,
 // 可能变慢的情况：寄存器溢出、指令缓存压力、编译器已经自动做了更合理的展开
 
 //一个 SM 通常可以同时驻留多个 block，硬件资源（寄存器、shared memory、线程数、block 数上限）决定了同一时刻能放多少个 block
-//只有在以下情况才会“看起来一个 block 独占一个 SM”：
+//只有在以下情况才会"看起来一个 block 独占一个 SM"：
 // block 线程数太大（接近上限）
 // shared memory 用量太高
 // 每线程寄存器太多
@@ -383,132 +383,72 @@ __global__ void sgemm_sliced_k_f32x4_padding_reg_kernel(float *a, float *b, floa
 }       
 
 
+// ==================== Torch bindings ====================
+#include <torch/types.h>
+#include <torch/extension.h>
 
+#define STRINGFY(str) #str
+#define TORCH_BINDING_COMMON_EXTENSION(func) \
+  m.def(STRINGFY(func), &func, STRINGFY(func));
 
+#define CHECK_TORCH_TENSOR_DTYPE(T, th_type)                 \
+  if (((T).options().dtype() != (th_type))) {                \
+    std::cout << "Tensor Info:" << (T).options() << std::endl; \
+    throw std::runtime_error("values must be " #th_type);    \
+  }
 
+#define CEIL(a,b) ((a+b-1)/(b))
 
-
-// ========== Host Helper Functions ==========
-// ========== 新增：CUDA 错误检查宏 ==========
-#define checkCudaErrors(err) \
-    do { \
-        cudaError_t err__ = (err); \
-        if (err__ != cudaSuccess) { \
-            fprintf(stderr, "CUDA Error %s at %s:%d\n", cudaGetErrorString(err__), __FILE__, __LINE__); \
-            exit(EXIT_FAILURE); \
-        } \
-    } while (0)
-
-#define WARP_SIZE 32
-#define INT4(value) (reinterpret_cast<int4 *>(&(value))[0])
-#define FLOAT4(value) (reinterpret_cast<float4 *>(&(value))[0])
-
-
-void cpu_gemm(const std::vector<float>& A, const std::vector<float>& B,
-              std::vector<float>& C, int M, int N, int K) {
-    for (int i = 0; i < M; ++i) {
-        for (int j = 0; j < N; ++j) {
-            float sum = 0.0f;
-            for (int k = 0; k < K; ++k) {
-                sum += A[i * K + k] * B[k * N + j];
-            }
-            C[i * N + j] = sum;
-        }
-    }
+// A: [M, K], B: [K, N] -> C: [M, N]
+torch::Tensor torch_sgemm_naive(torch::Tensor A, torch::Tensor B) {
+    CHECK_TORCH_TENSOR_DTYPE(A, torch::kFloat32);
+    int M = A.size(0), K = A.size(1), N = B.size(1);
+    auto C = torch::zeros({M, N}, A.options());
+    dim3 block(16, 16);
+    dim3 grid(CEIL(N, 16), CEIL(M, 16));
+    sgemm_naive<<<grid, block>>>(A.data_ptr<float>(), B.data_ptr<float>(), C.data_ptr<float>(), M, N, K);
+    return C;
 }
 
-bool validate(const std::vector<float>& ref, const std::vector<float>& gpu, int size, float atol = 1e-4, float rtol = 1e-5) {
-    for (int i = 0; i < size; ++i) {
-        float diff = fabsf(ref[i] - gpu[i]);
-        if (diff > atol + rtol * fabsf(ref[i])) {
-            printf("Mismatch at [%d]: ref=%f, gpu=%f, diff=%f\n", i, ref[i], gpu[i], diff);
-            return false;
-        }
-    }
-    return true;
+torch::Tensor torch_sgemm_sliced_k(torch::Tensor A, torch::Tensor B) {
+    CHECK_TORCH_TENSOR_DTYPE(A, torch::kFloat32);
+    int M = A.size(0), K = A.size(1), N = B.size(1);
+    auto C = torch::zeros({M, N}, A.options());
+    constexpr int BM = 32, BN = 32, TM = 4, TN = 4;
+    dim3 block(BN / TN, BM / TM);
+    dim3 grid(CEIL(N, BN), CEIL(M, BM));
+    sgemm_sliced_k_f32_kernel<BM, BN, 32, TM, TN><<<grid, block>>>(
+        A.data_ptr<float>(), B.data_ptr<float>(), C.data_ptr<float>(), M, N, K);
+    return C;
 }
 
-void fill_random(std::vector<float>& v) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
-    for (auto& x : v) x = dis(gen);
+torch::Tensor torch_sgemm_f32x4_padding(torch::Tensor A, torch::Tensor B) {
+    CHECK_TORCH_TENSOR_DTYPE(A, torch::kFloat32);
+    int M = A.size(0), K = A.size(1), N = B.size(1);
+    auto C = torch::zeros({M, N}, A.options());
+    constexpr int BM = 32, BN = 32, TM = 4, TN = 4;
+    dim3 block(BN / TN, BM / TM);
+    dim3 grid(CEIL(N, BN), CEIL(M, BM));
+    sgemm_sliced_k_f32x4_padding_kernel<BM, BN, 32, TM, TN><<<grid, block>>>(
+        A.data_ptr<float>(), B.data_ptr<float>(), C.data_ptr<float>(), M, N, K);
+    return C;
 }
 
-// ========== Main Test: with warmup and averaging ==========
-int main() {
-    const int M = 128;
-    const int N = 256;
-    const int K = 384;
+torch::Tensor torch_sgemm_f32x4_padding_reg(torch::Tensor A, torch::Tensor B) {
+    CHECK_TORCH_TENSOR_DTYPE(A, torch::kFloat32);
+    int M = A.size(0), K = A.size(1), N = B.size(1);
+    auto C = torch::zeros({M, N}, A.options());
+    constexpr int BM = 32, BN = 32, TM = 4, TN = 4;
+    dim3 block(BN / TN, BM / TM);
+    dim3 grid(CEIL(N, BN), CEIL(M, BM));
+    sgemm_sliced_k_f32x4_padding_reg_kernel<BM, BN, 32, TM, TN><<<grid, block>>>(
+        A.data_ptr<float>(), B.data_ptr<float>(), C.data_ptr<float>(), M, N, K);
+    return C;
+}
 
-    printf("Testing GEMM (with warmup & avg): %dx%d = %dx%d @ %dx%d\n", M, N, M, K, K, N);
-
-    std::vector<float> h_A(M * K);
-    std::vector<float> h_B(K * N);
-    std::vector<float> h_C_ref(M * N);
-    std::vector<float> h_C_reg(M * N);
-
-    fill_random(h_A);
-    fill_random(h_B);
-    cpu_gemm(h_A, h_B, h_C_ref, M, N, K);
-
-    float *d_A, *d_B, *d_C;
-    checkCudaErrors(cudaMalloc(&d_A, M * K * sizeof(float)));
-    checkCudaErrors(cudaMalloc(&d_B, K * N * sizeof(float)));
-    checkCudaErrors(cudaMalloc(&d_C, M * N * sizeof(float)));
-
-    checkCudaErrors(cudaMemcpy(d_A, h_A.data(), M * K * sizeof(float), cudaMemcpyHostToDevice));
-    checkCudaErrors(cudaMemcpy(d_B, h_B.data(), K * N * sizeof(float), cudaMemcpyHostToDevice));
-
-    constexpr int BM = 32, BN = 32, BK = 32, TM = 4, TN = 4;
-    dim3 block_opt(BN / TN, BM / TM); // (8, 8) → 64 threads
-    dim3 grid_opt((N + BN - 1) / BN, (M + BM - 1) / BM); // (8, 4)
-
-    printf("Launch config: Grid=(%d, %d), Block=(%d, %d)\n", grid_opt.x, grid_opt.y, block_opt.x, block_opt.y);
-
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-
-    // ===== Warmup =====
-    constexpr int WARMUP = 20;
-    constexpr int ITERS = 200;
-    for (int i = 0; i < WARMUP; ++i) {
-        sgemm_sliced_k_f32x4_padding_reg_kernel<BM, BN, BK, TM, TN><<<grid_opt, block_opt>>>(d_A, d_B, d_C, M, N, K);
-    }
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaDeviceSynchronize());
-
-    // ===== Timed runs =====
-    checkCudaErrors(cudaEventRecord(start));
-    for (int i = 0; i < ITERS; ++i) {
-        sgemm_sliced_k_f32x4_padding_reg_kernel<BM, BN, BK, TM, TN><<<grid_opt, block_opt>>>(d_A, d_B, d_C, M, N, K);
-    }
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaEventRecord(stop));
-    checkCudaErrors(cudaEventSynchronize(stop));
-
-    float total_ms = 0.0f;
-    checkCudaErrors(cudaEventElapsedTime(&total_ms, start, stop));
-    float avg_ms = total_ms / ITERS;
-    double tflops = (2.0 * static_cast<double>(M) * N * K) / (avg_ms * 1.0e-3) / 1.0e12;
-
-    checkCudaErrors(cudaMemcpy(h_C_reg.data(), d_C, M * N * sizeof(float), cudaMemcpyDeviceToHost));
-
-    bool passed = validate(h_C_ref, h_C_reg, M * N);
-    printf("Optimized kernel: %s (avg %.4f ms, %.3f TFLOPS)\n", passed ? "PASS ✅" : "FAIL ❌", avg_ms, tflops);
-
-    cudaFree(d_A);
-    cudaFree(d_B);
-    cudaFree(d_C);
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
-
-    if (passed) {
-        printf("\n🎉 All tests passed!\n");
-        return 0;
-    } else {
-        printf("\n💥 Test failed.\n");
-        return 1;
-    }
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+    TORCH_BINDING_COMMON_EXTENSION(torch_sgemm_naive)
+    TORCH_BINDING_COMMON_EXTENSION(torch_sgemm_sliced_k)
+    TORCH_BINDING_COMMON_EXTENSION(torch_sgemm_f32x4_padding)
+    TORCH_BINDING_COMMON_EXTENSION(torch_sgemm_f32x4_padding_reg)
 }

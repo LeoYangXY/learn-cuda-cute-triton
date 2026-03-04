@@ -19,7 +19,7 @@ void max_cpu(float* input, float* output, int N) {
 // 直观理解：
 // atomicCAS(address, A, B) 的作用是：
 // 偷偷看一眼 *address 的值：如果它等于 A，就立刻把它改成 B；
-// 不过最后不管改没改，都把「看到*address的那个旧值」返回给你。”
+// 不过最后不管改没改，都把「看到*address的那个旧值」返回给你。"
 
 
 //实现原子操作，因为我们是要在一个内存位置上放最大值，因此需要原子操作
@@ -44,7 +44,7 @@ __global__ void max_kernel_naive(float* input, float* output, int N) {
 
 //使用shared memory
 // 整个数组 input[0..N-1] 被划分成多个 线程块（block）。
-// 每个 block 内部先用 shared memory 找出自己 block 内的最大值（这叫“局部最大值”）。
+// 每个 block 内部先用 shared memory 找出自己 block 内的最大值（这叫"局部最大值"）。
 // 然后所有 block 的局部最大值通过 atomicMax 竞争写入同一个全局变量 output[0]，最终得到全局最大值
 __global__ void max_kernel_shared_only(float* input, float* output, int N) {
     extern __shared__ float sdata[];  // 动态 shared memory
@@ -61,7 +61,7 @@ __global__ void max_kernel_shared_only(float* input, float* output, int N) {
     // sdata = [3, 7, 2, 9, 1, 5, 8, 4]
     // 我们要在 shared memory 里 快速算出这 8 个数的最大值 → 应该是 9。
     // 如果让一个线程从头扫到尾，要 8 次比较，这样就浪费了其他 7 个线程！
-    // 而“树形规约”让所有线程并行参与计算，只用 3 轮（= log₂8） 就搞定！
+    // 而"树形规约"让所有线程并行参与计算，只用 3 轮（= log₂8） 就搞定！
     // 树形规约（Tree Reduction）在 shared memory 中找最大值
 
     // 目标：让 block 内所有线程协作，在 O(log(blockDim.x)) 轮内找出局部最大值
@@ -208,7 +208,7 @@ __global__ void max_kernel_shuffle(float* input, float* output, int N) {
 //
 // 🧠 内存访问基本机制：
 // - GPU 以 **warp（32 线程）** 为单位执行内存加载指令。
-// - 硬件会将一个 warp 中所有线程的地址请求 **合并（coalesce）** 成尽可能少的内存事务。事务数由“总访问字节数”和“地址连续性”决定
+// - 硬件会将一个 warp 中所有线程的地址请求 **合并（coalesce）** 成尽可能少的内存事务。事务数由"总访问字节数"和"地址连续性"决定
 // - 每个事务的最小粒度在现代 GPU（如 Ampere/Hopper）上通常为 **128 字节**（通过 L2 cache），
 // - 即使单个线程只读 4 字节（1 个 float），只要整个 warp 的 32 个线程访问的是
 //   **连续且对齐的地址**（如 a[0] ～ a[31]），硬件就能将其合并为 **1 次 128B 事务**，
@@ -243,7 +243,7 @@ __global__ void max_kernel_shuffle(float* input, float* output, int N) {
 //       - 总数据量仍为 4096B → 同样触发 4096 / 128 = 32 次事务
 //       - 但仅用 8 warps（64 线程/block → 2 warps/block）
 //
-// ✅ 核心优势（非“计算变多”，而是“开销变少”）：
+// ✅ 核心优势（非"计算变多"，而是"开销变少"）：
 //    【线程与资源开销大幅降低】
 //      - 线程数减少至 1/4 → 寄存器总占用下降，shared memory 压力减小；
 //      - 更易达到高 occupancy（SM 可调度更多 block 并行执行）。
@@ -345,278 +345,81 @@ __global__ void max_kernel_shuffle_pack_half(half* input, float* output, int N) 
 // 要么用专用的算数指令，要么转化为fp32然后计算
 
 
+// ==================== Torch bindings ====================
+#include <torch/types.h>
+#include <torch/extension.h>
 
+#define STRINGFY(str) #str
+#define TORCH_BINDING_COMMON_EXTENSION(func) \
+  m.def(STRINGFY(func), &func, STRINGFY(func));
 
+#define CHECK_TORCH_TENSOR_DTYPE(T, th_type)                 \
+  if (((T).options().dtype() != (th_type))) {                \
+    std::cout << "Tensor Info:" << (T).options() << std::endl; \
+    throw std::runtime_error("values must be " #th_type);    \
+  }
 
+#define CEIL(a,b) ((a+b-1)/(b))
 
-int main() {
-    size_t N = 1280;
-    constexpr size_t BLOCK_SIZE = 128;
-    const int repeat_times = 10;
-    float ref_max = static_cast<float>(N); // expected max = 1280.0
+// ---- FP32 reduce max wrappers ----
+torch::Tensor torch_reduce_max_naive(torch::Tensor input) {
+    CHECK_TORCH_TENSOR_DTYPE(input, torch::kFloat32);
+    int N = input.numel();
+    auto output = torch::full({1}, -FLT_MAX, input.options());
+    int block = 128;
+    int grid = CEIL(N, block);
+    max_kernel_naive<<<grid, block>>>(input.data_ptr<float>(), output.data_ptr<float>(), N);
+    return output;
+}
 
-    // ==============================
-    // Test 0: max_kernel_naive (float)
-    // ==============================
-    {
-        float* input = (float*)malloc(N * sizeof(float));
-        for (size_t i = 0; i < N; ++i) {
-            input[i] = static_cast<float>(i + 1);
-        }
+torch::Tensor torch_reduce_max_shared(torch::Tensor input) {
+    CHECK_TORCH_TENSOR_DTYPE(input, torch::kFloat32);
+    int N = input.numel();
+    auto output = torch::full({1}, -FLT_MAX, input.options());
+    int block = 128;
+    int grid = CEIL(N, block);
+    size_t shared_mem = block * sizeof(float);
+    max_kernel_shared_only<<<grid, block, shared_mem>>>(input.data_ptr<float>(), output.data_ptr<float>(), N);
+    return output;
+}
 
-        float *d_input = nullptr, *d_output = nullptr;
-        cudaMalloc(&d_input, N * sizeof(float));
-        cudaMalloc(&d_output, sizeof(float));
-        cudaMemcpy(d_input, input, N * sizeof(float), cudaMemcpyHostToDevice);
+torch::Tensor torch_reduce_max_shuffle(torch::Tensor input) {
+    CHECK_TORCH_TENSOR_DTYPE(input, torch::kFloat32);
+    int N = input.numel();
+    auto output = torch::full({1}, -FLT_MAX, input.options());
+    int block = 128;
+    int grid = CEIL(N, block);
+    max_kernel_shuffle<<<grid, block>>>(input.data_ptr<float>(), output.data_ptr<float>(), N);
+    return output;
+}
 
-        cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
+torch::Tensor torch_reduce_max_shuffle_float4(torch::Tensor input) {
+    CHECK_TORCH_TENSOR_DTYPE(input, torch::kFloat32);
+    int N = input.numel();
+    auto output = torch::full({1}, -FLT_MAX, input.options());
+    int block = 128;
+    int grid = CEIL(N / 4, block);
+    max_kernel_shuffle_float4<<<grid, block>>>(input.data_ptr<float>(), output.data_ptr<float>(), N);
+    return output;
+}
 
-        float result;
-        float total_time = 0.0f;
-        for (int rep = 0; rep < repeat_times; ++rep) {
-            float init_val = -FLT_MAX;
-            cudaMemcpy(d_output, &init_val, sizeof(float), cudaMemcpyHostToDevice);
+torch::Tensor torch_reduce_max_shuffle_pack_half(torch::Tensor input) {
+    CHECK_TORCH_TENSOR_DTYPE(input, torch::kHalf);
+    int N = input.numel();
+    auto output = torch::full({1}, -FLT_MAX, torch::dtype(torch::kFloat32).device(input.device()));
+    int block = 128;
+    int num_chunks = CEIL(N, 8);
+    int grid = CEIL(num_chunks, block);
+    max_kernel_shuffle_pack_half<<<grid, block>>>(
+        reinterpret_cast<half*>(input.data_ptr<at::Half>()),
+        output.data_ptr<float>(), N);
+    return output;
+}
 
-            int grid_size = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
-            cudaEventRecord(start);
-            max_kernel_naive<<<grid_size, BLOCK_SIZE>>>(d_input, d_output, N);
-            cudaEventRecord(stop);
-            cudaEventSynchronize(stop);
-
-            float elapsed;
-            cudaEventElapsedTime(&elapsed, start, stop);
-            total_time += elapsed;
-
-            cudaMemcpy(&result, d_output, sizeof(float), cudaMemcpyDeviceToHost);
-            if (fabs(result - ref_max) >= 1e-5) {
-                printf("[max_kernel_naive] ❌ FAIL at rep %d: got %f\n", rep, result);
-                break;
-            }
-        }
-
-        printf("[max_kernel_naive] Avg time: %.3f ms, result = %f, %s\n",
-               total_time / repeat_times, result,
-               (fabs(result - ref_max) < 1e-5) ? "✅ PASS" : "❌ FAIL");
-
-        free(input);
-        cudaFree(d_input);
-        cudaFree(d_output);
-        cudaEventDestroy(start);
-        cudaEventDestroy(stop);
-    }
-
-    // ==============================
-    // Test 1: max_kernel_shared_only (float)
-    // ==============================
-    {
-        float* input = (float*)malloc(N * sizeof(float));
-        for (size_t i = 0; i < N; ++i) {
-            input[i] = static_cast<float>(i + 1);
-        }
-
-        float *d_input = nullptr, *d_output = nullptr;
-        cudaMalloc(&d_input, N * sizeof(float));
-        cudaMalloc(&d_output, sizeof(float));
-        cudaMemcpy(d_input, input, N * sizeof(float), cudaMemcpyHostToDevice);
-
-        cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
-
-        float result;
-        float total_time = 0.0f;
-        for (int rep = 0; rep < repeat_times; ++rep) {
-            float init_val = -FLT_MAX;
-            cudaMemcpy(d_output, &init_val, sizeof(float), cudaMemcpyHostToDevice);
-
-            int grid_size = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
-            size_t shared_mem_size = BLOCK_SIZE * sizeof(float);
-            cudaEventRecord(start);
-            max_kernel_shared_only<<<grid_size, BLOCK_SIZE, shared_mem_size>>>(d_input, d_output, N);
-            cudaEventRecord(stop);
-            cudaEventSynchronize(stop);
-
-            float elapsed;
-            cudaEventElapsedTime(&elapsed, start, stop);
-            total_time += elapsed;
-
-            cudaMemcpy(&result, d_output, sizeof(float), cudaMemcpyDeviceToHost);
-            if (fabs(result - ref_max) >= 1e-5) {
-                printf("[max_kernel_shared_only] ❌ FAIL at rep %d: got %f\n", rep, result);
-                break;
-            }
-        }
-
-        printf("[max_kernel_shared_only] Avg time: %.3f ms, result = %f, %s\n",
-               total_time / repeat_times, result,
-               (fabs(result - ref_max) < 1e-5) ? "✅ PASS" : "❌ FAIL");
-
-        free(input);
-        cudaFree(d_input);
-        cudaFree(d_output);
-        cudaEventDestroy(start);
-        cudaEventDestroy(stop);
-    }
-
-    // ==============================
-    // Test 2: max_kernel_shuffle (float)
-    // ==============================
-    {
-        float* input = (float*)malloc(N * sizeof(float));
-        for (size_t i = 0; i < N; ++i) {
-            input[i] = static_cast<float>(i + 1);
-        }
-
-        float *d_input = nullptr, *d_output = nullptr;
-        cudaMalloc(&d_input, N * sizeof(float));
-        cudaMalloc(&d_output, sizeof(float));
-        cudaMemcpy(d_input, input, N * sizeof(float), cudaMemcpyHostToDevice);
-
-        cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
-
-        float result;
-        float total_time = 0.0f;
-        for (int rep = 0; rep < repeat_times; ++rep) {
-            float init_val = -FLT_MAX;
-            cudaMemcpy(d_output, &init_val, sizeof(float), cudaMemcpyHostToDevice);
-
-            int grid_size = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
-            cudaEventRecord(start);
-            max_kernel_shuffle<<<grid_size, BLOCK_SIZE>>>(d_input, d_output, N);
-            cudaEventRecord(stop);
-            cudaEventSynchronize(stop);
-
-            float elapsed;
-            cudaEventElapsedTime(&elapsed, start, stop);
-            total_time += elapsed;
-
-            cudaMemcpy(&result, d_output, sizeof(float), cudaMemcpyDeviceToHost);
-            if (fabs(result - ref_max) >= 1e-5) {
-                printf("[max_kernel_shuffle] ❌ FAIL at rep %d: got %f\n", rep, result);
-                break;
-            }
-        }
-
-        printf("[max_kernel_shuffle] Avg time: %.3f ms, result = %f, %s\n",
-               total_time / repeat_times, result,
-               (fabs(result - ref_max) < 1e-5) ? "✅ PASS" : "❌ FAIL");
-
-        free(input);
-        cudaFree(d_input);
-        cudaFree(d_output);
-        cudaEventDestroy(start);
-        cudaEventDestroy(stop);
-    }
-
-    // ==============================
-    // Test 3: max_kernel_shuffle_float4 (float input)
-    // ==============================
-    {
-        float* input = (float*)malloc(N * sizeof(float));
-        for (size_t i = 0; i < N; ++i) {
-            input[i] = static_cast<float>(i + 1);
-        }
-
-        float *d_input = nullptr, *d_output = nullptr;
-        cudaMalloc(&d_input, N * sizeof(float));
-        cudaMalloc(&d_output, sizeof(float));
-        cudaMemcpy(d_input, input, N * sizeof(float), cudaMemcpyHostToDevice);
-
-        cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
-
-        float result;
-        float total_time = 0.0f;
-        for (int rep = 0; rep < repeat_times; ++rep) {
-            float init_val = -FLT_MAX;
-            cudaMemcpy(d_output, &init_val, sizeof(float), cudaMemcpyHostToDevice);
-
-            int grid_size = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
-            cudaEventRecord(start);
-            max_kernel_shuffle_float4<<<grid_size, BLOCK_SIZE>>>(d_input, d_output, N);
-            cudaEventRecord(stop);
-            cudaEventSynchronize(stop);
-
-            float elapsed;
-            cudaEventElapsedTime(&elapsed, start, stop);
-            total_time += elapsed;
-
-            cudaMemcpy(&result, d_output, sizeof(float), cudaMemcpyDeviceToHost);
-            if (fabs(result - ref_max) >= 1e-5) {
-                printf("[max_kernel_shuffle_float4] ❌ FAIL at rep %d: got %f\n", rep, result);
-                break;
-            }
-        }
-
-        printf("[max_kernel_shuffle_float4] Avg time: %.3f ms, result = %f, %s\n",
-               total_time / repeat_times, result,
-               (fabs(result - ref_max) < 1e-5) ? "✅ PASS" : "❌ FAIL");
-
-        free(input);
-        cudaFree(d_input);
-        cudaFree(d_output);
-        cudaEventDestroy(start);
-        cudaEventDestroy(stop);
-    }
-
-    // ==============================
-    // Test 4: max_kernel_shuffle_pack_half (half input → float output)
-    // ==============================
-    {
-        half* h_input = (half*)malloc(N * sizeof(half));
-        for (size_t i = 0; i < N; ++i) {
-            h_input[i] = __float2half(static_cast<float>(i + 1));
-        }
-
-        half *d_input = nullptr;
-        float *d_output = nullptr;
-        cudaMalloc(&d_input, N * sizeof(half));
-        cudaMalloc(&d_output, sizeof(float));
-        cudaMemcpy(d_input, h_input, N * sizeof(half), cudaMemcpyHostToDevice);
-
-        cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
-
-        float result;
-        float total_time = 0.0f;
-        for (int rep = 0; rep < repeat_times; ++rep) {
-            float init_val = -FLT_MAX;
-            cudaMemcpy(d_output, &init_val, sizeof(float), cudaMemcpyHostToDevice);
-
-            int num_chunks = (N + 8 - 1) / 8;
-            int grid_size = (num_chunks + BLOCK_SIZE - 1) / BLOCK_SIZE;
-            cudaEventRecord(start);
-            max_kernel_shuffle_pack_half<<<grid_size, BLOCK_SIZE>>>(d_input, d_output, N);
-            cudaEventRecord(stop);
-            cudaEventSynchronize(stop);
-
-            float elapsed;
-            cudaEventElapsedTime(&elapsed, start, stop);
-            total_time += elapsed;
-
-            cudaMemcpy(&result, d_output, sizeof(float), cudaMemcpyDeviceToHost);
-            if (fabs(result - ref_max) >= 1e-3) {
-                printf("[max_kernel_shuffle_pack_half] ❌ FAIL at rep %d: got %f\n", rep, result);
-                break;
-            }
-        }
-
-        printf("[max_kernel_shuffle_pack_half] Avg time: %.3f ms, result = %f, %s\n",
-               total_time / repeat_times, result,
-               (fabs(result - ref_max) < 1e-3) ? "✅ PASS" : "❌ FAIL");
-
-        free(h_input);
-        cudaFree(d_input);
-        cudaFree(d_output);
-        cudaEventDestroy(start);
-        cudaEventDestroy(stop);
-    }
-
-    return 0;
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+    TORCH_BINDING_COMMON_EXTENSION(torch_reduce_max_naive)
+    TORCH_BINDING_COMMON_EXTENSION(torch_reduce_max_shared)
+    TORCH_BINDING_COMMON_EXTENSION(torch_reduce_max_shuffle)
+    TORCH_BINDING_COMMON_EXTENSION(torch_reduce_max_shuffle_float4)
+    TORCH_BINDING_COMMON_EXTENSION(torch_reduce_max_shuffle_pack_half)
 }

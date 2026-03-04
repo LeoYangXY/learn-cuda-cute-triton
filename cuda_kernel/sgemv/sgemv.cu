@@ -16,10 +16,10 @@
 
 
 // 很关键的对于四个视角的理解：
-// thread 视角：“我算谁”——决定每个线程负责哪些元素/哪一行哪一列。
-// warp 视角：“怎么协作算”——决定 warp 内如何合并访存、如何做规约。
-// block 视角：“资源与局部协作”——决定一个 block 覆盖多少行/多少元素，是否用 shared memory，warp 数量配置。
-// grid 视角：“全局覆盖范围”——决定有多少个 block、如何覆盖完整的矩阵维度。
+// thread 视角："我算谁"——决定每个线程负责哪些元素/哪一行哪一列。
+// warp 视角："怎么协作算"——决定 warp 内如何合并访存、如何做规约。
+// block 视角："资源与局部协作"——决定一个 block 覆盖多少行/多少元素，是否用 shared memory，warp 数量配置。
+// grid 视角："全局覆盖范围"——决定有多少个 block、如何覆盖完整的矩阵维度。
 
 
 //  Warp Reduce Sum
@@ -70,7 +70,7 @@ __global__ void sgemv_32_kernel(float *a, float *x, float *y, int M,
     // col = lane * NUM_WARPS + time
     // 问题在于：
     // 不合并访存：同一时刻（同一轮 time），warp 的 32 个线程访问的是
-    // 0, NUM_WARPS, 2*NUM_WARPS, ... 这种“跨大步”的地址，不是连续地址，内存事务会被拆成很多段，带宽利用差。
+    // 0, NUM_WARPS, 2*NUM_WARPS, ... 这种"跨大步"的地址，不是连续地址，内存事务会被拆成很多段，带宽利用差。
     // 缓存友好性差：全局内存访问跨度大，L2/L1 预取和合并效果都不好。
     // 线程协作差：warp 内每个线程访问的地址分散，硬件很难把它们合并成少量 memory transaction。
     // 第二种：
@@ -119,7 +119,7 @@ if (lane == 0) {
 
 
 //==k为16，那么很自然的就是让一个warp负责2行
-//不过至于一个block中包含多少个warp呢：这个参数 不是“固定真理”，一般是调优出来的（经验 + 性能测试）：
+//不过至于一个block中包含多少个warp呢：这个参数 不是"固定真理"，一般是调优出来的（经验 + 性能测试）：
 // warp 多一些 → 并行度更高，但寄存器/共享内存压力更大
 // warp 少一些 → 资源压力小，但并行度可能不足
 // 所以会按设备、K、M、算子形态做权衡。
@@ -150,131 +150,64 @@ __global__ void sgemv_16_kernel(float *a, float *x, float *y, int M,
 }
 
 
+// ==================== Torch bindings ====================
+#include <torch/types.h>
+#include <torch/extension.h>
 
+#define STRINGFY(str) #str
+#define TORCH_BINDING_COMMON_EXTENSION(func) \
+  m.def(STRINGFY(func), &func, STRINGFY(func));
 
-// ------------------- Host helper functions -------------------
+#define CHECK_TORCH_TENSOR_DTYPE(T, th_type)                 \
+  if (((T).options().dtype() != (th_type))) {                \
+    std::cout << "Tensor Info:" << (T).options() << std::endl; \
+    throw std::runtime_error("values must be " #th_type);    \
+  }
 
-void cpu_sgemv(const std::vector<float>& A, const std::vector<float>& x,
-               std::vector<float>& y, int M, int K) {
-    y.assign(M, 0.0f);
-    for (int i = 0; i < M; ++i) {
-        float sum = 0.0f;
-        for (int j = 0; j < K; ++j) {
-            sum += A[i * K + j] * x[j];
-        }
-        y[i] = sum;
-    }
+#define CEIL(a,b) ((a+b-1)/(b))
+
+// A: [M, K], x: [K] -> y: [M]
+// K must be multiple of 32
+torch::Tensor torch_sgemv_32(torch::Tensor A, torch::Tensor x) {
+    CHECK_TORCH_TENSOR_DTYPE(A, torch::kFloat32);
+    int M = A.size(0), K = A.size(1);
+    auto y = torch::empty({M}, A.options());
+    constexpr int warps_per_block = 4;
+    dim3 block(warps_per_block * 32);
+    dim3 grid(CEIL(M, warps_per_block));
+    sgemv_32_kernel<warps_per_block><<<grid, block>>>(
+        A.data_ptr<float>(), x.data_ptr<float>(), y.data_ptr<float>(), M, K);
+    return y;
 }
 
-bool validate(const std::vector<float>& gpu_y, const std::vector<float>& cpu_y, float tol = 1e-5f) {
-    if (gpu_y.size() != cpu_y.size()) return false;
-    for (size_t i = 0; i < gpu_y.size(); ++i) {
-        if (std::abs(gpu_y[i] - cpu_y[i]) > tol) {
-            printf("Mismatch at %zu: gpu=%f, cpu=%f\n", i, gpu_y[i], cpu_y[i]);
-            return false;
-        }
-    }
-    return true;
+// K must be multiple of 128
+torch::Tensor torch_sgemv_128(torch::Tensor A, torch::Tensor x) {
+    CHECK_TORCH_TENSOR_DTYPE(A, torch::kFloat32);
+    int M = A.size(0), K = A.size(1);
+    auto y = torch::empty({M}, A.options());
+    constexpr int warps_per_block = 4;
+    dim3 block(warps_per_block * 32);
+    dim3 grid(CEIL(M, warps_per_block));
+    sgemv_128_kernel<warps_per_block><<<grid, block>>>(
+        A.data_ptr<float>(), x.data_ptr<float>(), y.data_ptr<float>(), M, K);
+    return y;
 }
 
-// ------------------- Test runner -------------------
-
-void test_kernel(const char* name, dim3 grid, dim3 block,
-                 void (*kernel)(float*, float*, float*, int, int),
-                 float* d_A, float* d_x, float* d_y,
-                 const std::vector<float>& h_A, const std::vector<float>& h_x,
-                 int M, int K) {
-
-    std::vector<float> h_y_cpu(M);
-    cpu_sgemv(h_A, h_x, h_y_cpu, M, K);
-
-    // Launch kernel
-    kernel<<<grid, block>>>(d_A, d_x, d_y, M, K);
-    cudaDeviceSynchronize();
-
-    std::vector<float> h_y_gpu(M);
-    cudaMemcpy(h_y_gpu.data(), d_y, M * sizeof(float), cudaMemcpyDeviceToHost);
-
-    bool ok = validate(h_y_gpu, h_y_cpu);
-    printf("[%s] M=%d, K=%d → %s\n", name, M, K, ok ? "PASS" : "FAIL");
-    if (!ok) exit(1);
+// K must be 16
+torch::Tensor torch_sgemv_16(torch::Tensor A, torch::Tensor x) {
+    CHECK_TORCH_TENSOR_DTYPE(A, torch::kFloat32);
+    int M = A.size(0), K = A.size(1);
+    auto y = torch::empty({M}, A.options());
+    constexpr int warps_per_block = 4;
+    dim3 block(warps_per_block * 32);
+    dim3 grid(CEIL(M, warps_per_block * 2));  // each block handles 8 rows
+    sgemv_16_kernel<warps_per_block><<<grid, block>>>(
+        A.data_ptr<float>(), x.data_ptr<float>(), y.data_ptr<float>(), M, K);
+    return y;
 }
 
-
-int main() {
-    const int M = 128;
-
-    // Random generator
-    std::mt19937 gen(12345);
-    std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
-
-    // ================== Test 1: K = 96 (multiple of 32, not 128) ==================
-    {
-        int K = 96;
-        std::vector<float> h_A(M * K), h_x(K);
-        for (auto& v : h_A) v = dis(gen);
-        for (auto& v : h_x) v = dis(gen);
-
-        float *d_A, *d_x, *d_y;
-        cudaMalloc(&d_A, M * K * sizeof(float));
-        cudaMalloc(&d_x, K * sizeof(float));
-        cudaMalloc(&d_y, M * sizeof(float));
-        cudaMemcpy(d_A, h_A.data(), M * K * sizeof(float), cudaMemcpyHostToDevice);
-        cudaMemcpy(d_x, h_x.data(), K * sizeof(float), cudaMemcpyHostToDevice);
-
-        dim3 block(4 * 32); // warps_per_block = 4 → 128 threads
-        dim3 grid((M + 4 - 1) / 4); // ceil(M / 4)
-
-        test_kernel("sgemv_32_kernel", grid, block, sgemv_32_kernel<4>, d_A, d_x, d_y, h_A, h_x, M, K);
-
-        cudaFree(d_A); cudaFree(d_x); cudaFree(d_y);
-    }
-
-    // ================== Test 2: K = 256 (multiple of 128) ==================
-    {
-        int K = 256;
-        std::vector<float> h_A(M * K), h_x(K);
-        for (auto& v : h_A) v = dis(gen);
-        for (auto& v : h_x) v = dis(gen);
-
-        float *d_A, *d_x, *d_y;
-        cudaMalloc(&d_A, M * K * sizeof(float));
-        cudaMalloc(&d_x, K * sizeof(float));
-        cudaMalloc(&d_y, M * sizeof(float));
-        cudaMemcpy(d_A, h_A.data(), M * K * sizeof(float), cudaMemcpyHostToDevice);
-        cudaMemcpy(d_x, h_x.data(), K * sizeof(float), cudaMemcpyHostToDevice);
-
-        dim3 block(4 * 32);
-        dim3 grid((M + 4 - 1) / 4);
-
-        test_kernel("sgemv_128_kernel", grid, block, sgemv_128_kernel<4>, d_A, d_x, d_y, h_A, h_x, M, K);
-
-        cudaFree(d_A); cudaFree(d_x); cudaFree(d_y);
-    }
-
-    // ================== Test 3: K = 16 ==================
-    {
-        int K = 16;
-        int M_test = 100; // not multiple of 8, to test boundary
-        std::vector<float> h_A(M_test * K), h_x(K);
-        for (auto& v : h_A) v = dis(gen);
-        for (auto& v : h_x) v = dis(gen);
-
-        float *d_A, *d_x, *d_y;
-        cudaMalloc(&d_A, M_test * K * sizeof(float));
-        cudaMalloc(&d_x, K * sizeof(float));
-        cudaMalloc(&d_y, M_test * sizeof(float));
-        cudaMemcpy(d_A, h_A.data(), M_test * K * sizeof(float), cudaMemcpyHostToDevice);
-        cudaMemcpy(d_x, h_x.data(), K * sizeof(float), cudaMemcpyHostToDevice);
-
-        dim3 block(4 * 32); // 128 threads → 4 warps → handles 8 rows per block
-        dim3 grid((M_test + 8 - 1) / 8); // each block handles 8 rows
-
-        test_kernel("sgemv_16_kernel", grid, block, sgemv_16_kernel<4>, d_A, d_x, d_y, h_A, h_x, M_test, K);
-
-        cudaFree(d_A); cudaFree(d_x); cudaFree(d_y);
-    }
-
-    printf("\n✅ All tests passed!\n");
-    return 0;
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+    TORCH_BINDING_COMMON_EXTENSION(torch_sgemv_32)
+    TORCH_BINDING_COMMON_EXTENSION(torch_sgemv_128)
+    TORCH_BINDING_COMMON_EXTENSION(torch_sgemv_16)
 }

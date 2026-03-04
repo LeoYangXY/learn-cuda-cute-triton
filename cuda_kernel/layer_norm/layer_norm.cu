@@ -132,71 +132,46 @@ __global__ void layer_norm_float4_kernel(float* x, float* y, float g, float b, i
 }
 
 
-int main() {
-    const int N = 2;      // batch × seq_len
-    const int K = 256;     
-    const float g = 1.2f;
-    const float b = 0.5f;
-    const int num_runs = 10;
+// ==================== Torch bindings ====================
+#include <torch/types.h>
+#include <torch/extension.h>
 
-    std::vector<float> h_x(N * K);
-    for (int i = 0; i < N; ++i) {
-        for (int j = 0; j < K; ++j) {
-            h_x[i * K + j] = static_cast<float>(j);  // j ∈ [0, 255]
-        }
-    }
+#define STRINGFY(str) #str
+#define TORCH_BINDING_COMMON_EXTENSION(func) \
+  m.def(STRINGFY(func), &func, STRINGFY(func));
 
-    // --- CPU 参考结果 ---
-    auto cpu_layer_norm = [&](const std::vector<float>& x, float g, float b) {
-        std::vector<float> y(N * K);
-        const float eps = 1e-5f;
-        for (int i = 0; i < N; ++i) {
-            float sum = 0.0f;
-            for (int j = 0; j < K; ++j) sum += x[i * K + j];
-            float mean = sum / K;
-            float var_sum = 0.0f;
-            for (int j = 0; j < K; ++j) {
-                float d = x[i * K + j] - mean;
-                var_sum += d * d;
-            }
-            float inv_std = rsqrtf(var_sum / K + eps);
-            for (int j = 0; j < K; ++j)
-                y[i * K + j] = (x[i * K + j] - mean) * inv_std * g + b;
-        }
-        return y;
-    };
-    std::vector<float> h_y_ref = cpu_layer_norm(h_x, g, b);
+#define CHECK_TORCH_TENSOR_DTYPE(T, th_type)                 \
+  if (((T).options().dtype() != (th_type))) {                \
+    std::cout << "Tensor Info:" << (T).options() << std::endl; \
+    throw std::runtime_error("values must be " #th_type);    \
+  }
 
-    // --- GPU 内存分配 ---
-    float *d_x, *d_y;
-    cudaMalloc(&d_x, N * K * sizeof(float));
-    cudaMalloc(&d_y, N * K * sizeof(float));
-    cudaMemcpy(d_x, h_x.data(), N * K * sizeof(float), cudaMemcpyHostToDevice);
-
-    // --- 工具函数：验证正确性 ---
-    auto check_correctness = [&](const std::vector<float>& gpu_out, const char* name) {
-        float max_err = 0.0f;
-        for (int i = 0; i < N * K; ++i)
-            max_err = fmaxf(max_err, fabsf(gpu_out[i] - h_y_ref[i]));
-        printf("%s: max error = %.6e %s\n", name, max_err, (max_err < 1e-5f ? "✅" : "❌"));
-    };
-
-    // --- 测试 f32 kernel ---
+// x: [N, K], g: scalar, b: scalar -> y: [N, K]
+torch::Tensor torch_layer_norm_f32(torch::Tensor x, float g, float b) {
+    CHECK_TORCH_TENSOR_DTYPE(x, torch::kFloat32);
+    int N = x.size(0);
+    int K = x.size(1);
+    auto y = torch::empty_like(x);
     dim3 grid(N);
-    dim3 block_f32(K);
-    layer_norm_f32_kernel<<<grid, block_f32>>>(d_x, d_y, g, b, N, K);
-    cudaDeviceSynchronize();
-    std::vector<float> h_y_f32(N * K);
-    cudaMemcpy(h_y_f32.data(), d_y, N * K * sizeof(float), cudaMemcpyDeviceToHost);
-    check_correctness(h_y_f32, "f32 kernel");
+    dim3 block(K);  // K must be <= 1024
+    layer_norm_f32_kernel<256><<<grid, block>>>(
+        x.data_ptr<float>(), y.data_ptr<float>(), g, b, N, K);
+    return y;
+}
 
+torch::Tensor torch_layer_norm_float4(torch::Tensor x, float g, float b) {
+    CHECK_TORCH_TENSOR_DTYPE(x, torch::kFloat32);
+    int N = x.size(0);
+    int K = x.size(1);
+    auto y = torch::empty_like(x);
+    dim3 grid(N);
+    dim3 block(K / 4);
+    layer_norm_float4_kernel<256/4><<<grid, block>>>(
+        x.data_ptr<float>(), y.data_ptr<float>(), g, b, N, K);
+    return y;
+}
 
-    dim3 block_f4(K / 4);
-    layer_norm_float4_kernel<<<grid, block_f4>>>(d_x, d_y, g, b, N, K);
-    cudaDeviceSynchronize();
-    std::vector<float> h_y_f4(N * K);
-    cudaMemcpy(h_y_f4.data(), d_y, N * K * sizeof(float), cudaMemcpyDeviceToHost);
-    check_correctness(h_y_f4, "float4 kernel");
-
-    return 0;
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+    TORCH_BINDING_COMMON_EXTENSION(torch_layer_norm_f32)
+    TORCH_BINDING_COMMON_EXTENSION(torch_layer_norm_float4)
 }

@@ -12,10 +12,13 @@ def add_kernel(
     n_elements,
     BLOCK_SIZE: tl.constexpr,#为什么 BLOCK_SIZE 必须是 constexpr？ 这是因为tl.arange(start, end) 要求 end 是编译期常量，因为 Triton 需要知道这个 tensor 的 shape（长度） 来分配寄存器。如果 BLOCK_SIZE 是 runtime 变量（比如从 host 传进来的一个普通 int），Triton 无法在编译时确定 offsets 有多长 → 编译失败。
 ):
+    
+    ##=============================================
+    ##下面就是和cuda要做的一样：想表达处理哪些元素，先直观分配出来，然后再去写
+    ##假设 BLOCK_SIZE = 128，我们想让pid0去处理x[0:128], pid1去处理x[128:256]，以此类推
     #去划分每个block需要处理的数据start位置
     pid = tl.program_id(0)
     block_start = pid * BLOCK_SIZE
-
     #用tensor视角表达出这个block要处理的数据范围
     offsets = block_start + tl.arange(0, BLOCK_SIZE)#一个指针配合上一个tensor的语义:相当于这个tensor里面所有的元素都加上了block_start的偏移
     mask = offsets < n_elements
@@ -28,7 +31,13 @@ def add_kernel(
 def triton_add(x, y, BLOCK_SIZE=1024):
     output = torch.empty_like(x)
     n = output.numel()
+
+    # 定义 Grid
+    # Grid 表示我们需要启动多少个 Kernel 实例
+    # 公式：向上取整 (n_elements / BLOCK_SIZE)
+    # 例如：n=1025, BLOCK_SIZE=1024 -> grid=2
     grid = lambda meta: (triton.cdiv(n, meta["BLOCK_SIZE"]),)
+    
     add_kernel[grid](x, y, output, n, BLOCK_SIZE=BLOCK_SIZE)
     return output
 

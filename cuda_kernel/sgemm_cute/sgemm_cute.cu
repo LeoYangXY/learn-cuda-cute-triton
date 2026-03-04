@@ -12,7 +12,6 @@
 
 // 引入 CUTE 库（CUDA 12.0+ 自带）
 #include <cute/tensor.hpp>
-using namespace cute;
 
 #define FLOAT4(value) (reinterpret_cast<float4 *>(&(value))[0])
 
@@ -71,6 +70,7 @@ template <
     int TN = 4   // 每个线程负责计算的 C 子块列数
 >
 __global__ void sgemm_cute_kernel(float* A, float* B, float* C, int M, int N, int K) {
+    using namespace cute;
     constexpr int THREADS_PER_BLOCK = (BM / TM) * (BN / TN);
     static_assert(THREADS_PER_BLOCK == 64, "期望每个 Block 有 64 个线程");
 
@@ -139,93 +139,36 @@ __global__ void sgemm_cute_kernel(float* A, float* B, float* C, int M, int N, in
     }
 }
 
-// ========== 主函数：测试 CUTE GEMM ==========
-int main() {
-    // 测试矩阵尺寸
-    const int M = 128;
-    const int N = 256;
-    const int K = 384;
 
-    printf("正在测试 CUTE GEMM: C[%dx%d] = A[%dx%d] @ B[%dx%d]\n", M, N, M, K, K, N);
+// ==================== Torch bindings ====================
+#include <torch/types.h>
+#include <torch/extension.h>
 
-    // 分配主机内存
-    std::vector<float> h_A(M * K);
-    std::vector<float> h_B(K * N);
-    std::vector<float> h_C_ref(M * N); // CPU 参考结果
-    std::vector<float> h_C_gpu(M * N); // GPU 计算结果
+#define STRINGFY(str) #str
+#define TORCH_BINDING_COMMON_EXTENSION(func) \
+  m.def(STRINGFY(func), &func, STRINGFY(func));
 
-    // 填充随机数据
-    fill_random(h_A);
-    fill_random(h_B);
+#define CHECK_TORCH_TENSOR_DTYPE(T, th_type)                 \
+  if (((T).options().dtype() != (th_type))) {                \
+    std::cout << "Tensor Info:" << (T).options() << std::endl; \
+    throw std::runtime_error("values must be " #th_type);    \
+  }
 
-    // 用 CPU 计算参考结果
-    cpu_gemm(h_A, h_B, h_C_ref, M, N, K);
+#define CEIL(a,b) ((a+b-1)/(b))
 
-    // 分配设备内存
-    float *d_A, *d_B, *d_C;
-    checkCudaErrors(cudaMalloc(&d_A, M * K * sizeof(float)));
-    checkCudaErrors(cudaMalloc(&d_B, K * N * sizeof(float)));
-    checkCudaErrors(cudaMalloc(&d_C, M * N * sizeof(float)));
-
-    // 将数据从主机拷贝到设备
-    checkCudaErrors(cudaMemcpy(d_A, h_A.data(), M * K * sizeof(float), cudaMemcpyHostToDevice));
-    checkCudaErrors(cudaMemcpy(d_B, h_B.data(), K * N * sizeof(float), cudaMemcpyHostToDevice));
-
-    // 配置 Kernel 启动参数
+torch::Tensor torch_sgemm_cute(torch::Tensor A, torch::Tensor B) {
+    CHECK_TORCH_TENSOR_DTYPE(A, torch::kFloat32);
+    int M = A.size(0), K = A.size(1), N = B.size(1);
+    auto C = torch::zeros({M, N}, A.options());
     constexpr int BM = 32, BN = 32, BK = 32, TM = 4, TN = 4;
-    constexpr int THREADS = (BM / TM) * (BN / TN); // 64
-    dim3 block(THREADS);           // 一维 block，threadIdx.x 范围 0~63
-    dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM); // 向上取整
+    constexpr int THREADS = (BM / TM) * (BN / TN);
+    dim3 block(THREADS);
+    dim3 grid(CEIL(N, BN), CEIL(M, BM));
+    sgemm_cute_kernel<BM, BN, BK, TM, TN><<<grid, block>>>(
+        A.data_ptr<float>(), B.data_ptr<float>(), C.data_ptr<float>(), M, N, K);
+    return C;
+}
 
-    printf("启动配置: Grid=(%d, %d), Block=(%d)\n", grid.x, grid.y, block.x);
-
-    // 创建 CUDA 事件用于计时
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-
-    // 统一口径计时：warmup + 多轮平均，减少一次性抖动
-    constexpr int WARMUP = 20;
-    constexpr int ITERS = 200;
-
-    for (int i = 0; i < WARMUP; ++i) {
-        sgemm_cute_kernel<BM, BN, BK, TM, TN><<<grid, block>>>(d_A, d_B, d_C, M, N, K);
-    }
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaDeviceSynchronize());
-
-    checkCudaErrors(cudaEventRecord(start));
-    for (int i = 0; i < ITERS; ++i) {
-        sgemm_cute_kernel<BM, BN, BK, TM, TN><<<grid, block>>>(d_A, d_B, d_C, M, N, K);
-    }
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaEventRecord(stop));
-    checkCudaErrors(cudaEventSynchronize(stop));
-
-    float total_ms = 0.0f;
-    checkCudaErrors(cudaEventElapsedTime(&total_ms, start, stop));
-    float ms = total_ms / ITERS;
-    double tflops = (2.0 * static_cast<double>(M) * N * K) / (ms * 1.0e-3) / 1.0e12;
-
-    // 将结果拷回主机
-    checkCudaErrors(cudaMemcpy(h_C_gpu.data(), d_C, M * N * sizeof(float), cudaMemcpyDeviceToHost));
-
-    // 验证结果
-    bool passed = validate(h_C_ref, h_C_gpu, M * N);
-    printf("CUTE GEMM 测试: %s (平均 %.4f 毫秒, %.3f TFLOPS)\n", passed ? "通过 ✅" : "失败 ❌", ms, tflops);
-
-    // 释放资源
-    cudaFree(d_A);
-    cudaFree(d_B);
-    cudaFree(d_C);
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
-
-    if (passed) {
-        printf("\n🎉 所有测试通过！\n");
-        return 0;
-    } else {
-        printf("\n💥 测试失败，请检查代码。\n");
-        return 1;
-    }
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+    TORCH_BINDING_COMMON_EXTENSION(torch_sgemm_cute)
 }
