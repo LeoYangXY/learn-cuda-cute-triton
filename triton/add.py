@@ -42,12 +42,35 @@ def triton_add(x, y, BLOCK_SIZE=1024):
     return output
 
 
+def launch_add_kernel(data, BLOCK_SIZE):
+    x = data["x"]
+    y = data["y"]
+    out = data["out"]
+    n = out.numel()
+    grid = lambda meta: (triton.cdiv(n, meta["BLOCK_SIZE"]),)
+    add_kernel[grid](x, y, out, n, BLOCK_SIZE=BLOCK_SIZE)
+
+
+def launch_torch_add(data):
+    return data["x"] + data["y"]
+
+
+def prepare_add_data(size, device, dtype):
+    x = torch.randn(size, device=device, dtype=dtype)
+    y = torch.randn(size, device=device, dtype=dtype)
+    out = torch.empty_like(x)
+    return {"x": x, "y": y, "out": out}
+
+
 
 if __name__ == "__main__":
     sizes_to_test = [2**i for i in range(12, 26)]  # 4K to 32M
     auto_tune_and_benchmark(
-        triton_func=triton_add,
-        torch_func=lambda x, y: x + y,
+        triton_launch=launch_add_kernel,
+        torch_launch=launch_torch_add,
         sizes=sizes_to_test,
         block_sizes=[64, 128, 256, 512, 1024],
+        prepare_data_fn=prepare_add_data,
+        triton_output_getter=lambda data: data["out"],
+        use_do_bench=True,
     )
