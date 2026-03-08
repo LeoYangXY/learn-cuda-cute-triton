@@ -48,6 +48,10 @@ __device__ __forceinline__ float warp_reduce_sum_f32(float val) {
   return val;
 }
 
+// 这个 block_reduce_sum 函数的本质就是：
+// 每个线程传入一个thread自己处理好的标量值（比如从 float4 中 reduce 出来的单个 float），或者就是一个thread自己只负责一个元素
+// 然后通过两阶段归约（warp 内 shuffle + 跨 warp借助shared memory然后用一个represent warp去做warp内shuffle）求出整个 block 的总和，
+// 并广播给所有线程，最后每个thread都能拿到这个 block 协作算出来的那个值
 // Block-wide sum: reduce within warp, then reduce warp sums and broadcast.
 // grid 1D block 1D, grid(N/256), block(256)
 template <const int NUM_THREADS = 256>
