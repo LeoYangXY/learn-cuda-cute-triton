@@ -1,403 +1,258 @@
-#include <thrust/host_vector.h>
-#include <thrust/device_vector.h>
-#include <iostream>
-#include <cstdlib>
-#include <cstdio>
-#include <random>
-
-// CUDA Half 类型支持
-#include <cuda_fp16.h> 
-// CUTE 核心
 #include <cute/tensor.hpp>
-#include <cute/atom/mma_atom.hpp>
-#include <cute/atom/mma_traits_sm80.hpp>
-
 using namespace cute;
 
-
-// === GEMM Kernel (CUTE) ===
-
-
-
-// 在 RTX 4070 (Ada) 上，最基础的 FP16/FP32 Tensor Core 指令形状是 m16n8k8。
-// 这意味着在thread维度：一次指令需要：
-// • A 矩阵块: 16 × 8 (M × K)
-// • B 矩阵块: 8 × 8 (K × N)
-// • C 矩阵块: 16 × 8 (M × N) -> 这是每个线程最终负责的结果大小。
-
-
-//这里使用了隐式模板实例化的手段：AStride，ABlockLayout，AThreadLayout这些不是CUTE原生就有的数据类型，而是我们设置为模板参数，然后当作函数入参的类型
-//在调用的时候，调用者根据传入的那个数据的类型进行隐式实例化
-// 主要步骤如下：
-// 类型推导：编译器通过观察你传给函数的实参（dA），反向推导出模板参数（AStride）应该是什么类型。你不需要手动写 <Stride<Int<1>, int>>。
-// 实例化：一旦类型确定，编译器就会在后台“复制”一份函数代码，把所有的 AStride 替换成具体的 Stride<Int<1>, int>，然后编译这份新代码。
-template <typename TA, typename TB, typename TC>
-__global__ void gemm_device(
-    int M, int N, int K,
-    TA const* A, int ldA,
-    TB const* B, int ldB,
-    TC*       C, int ldC)
+// 这里是 A:(M, K), B:(N, K) 去算 C = A * B^T
+template <class MShape, class NShape, class KShape,
+          class TA, class TB, class TC,
+          class Alpha, class Beta>
+__global__ static
+void
+gemm_device(MShape M, NShape N, KShape K,
+            TA const* A,
+            TB const* B,
+            TC      * C,
+            Alpha alpha, Beta beta)
 {
+  using X = Underscore;
 
-using namespace cute;
-using X = Underscore;
-using MMA_Atom = MMA_Atom<SM80_16x8x16_F32F16F16F32_TN>;
-MMA_Atom mma_atom;
+  //带有g的就是global memory部分；带有s的就是shared memory部分
 
-constexpr int BM = 128;
-constexpr int BK = 16;
-constexpr int BN = 128;
+  // Int<>这种就是编译期常量，int()这种就是运行时常量
+  auto stride_gA = make_stride(Int<1>{}, M);
+  auto stride_gB = make_stride(Int<1>{}, N);
+  auto stride_gC = make_stride(Int<1>{}, M);
 
-// 线程配置: (8, 16) -> 128 线程，每个block负责C中的(128,128)的元素
-// 这样每个线程负责C中的: (128/8, 128/16) = (16, 8) -> 完美匹配 m16n8k8 指令
-constexpr int THREADS_M = 8;
-constexpr int THREADS_N = 16;
-constexpr int TOTAL_THREADS = THREADS_M * THREADS_N; // 128
+  //总共是256个thread，每个thread负责去算出C中的8*8个元素
+  constexpr auto BM = Int<128>{}; 
+  constexpr auto BN = Int<128>{}; 
+  constexpr auto BK = Int<  8>{}; 
 
-// 实际分配SMEM
-__shared__ TA smemA[BM * BK];
-__shared__ TB smemB[BK * BN];
+  // 每个方向上的块数量
+  int grid_m = ceil_div(M, BM); 
+  int grid_n = ceil_div(N, BN); 
+  int grid_k = ceil_div(K, BK); 
 
-// 创建 SMEM 的 Tensor 视图 (列优先布局)
-// make_layout会默认使用列优先布局，因此不用写make_layout(make_shape(BK,BM),make_stride(1,BK)),直接写make_layout(make_shape(BM,BK))就行了
-auto sA = make_tensor(make_smem_ptr(smemA), make_layout(make_shape(BM, BK)));
-auto sB = make_tensor(make_smem_ptr(smemB), make_layout(make_shape(BK, BN)));
+  // 每个block负责去算C中的(blk_idx_m,blk_idx_n)的这个tile
+  int blk_idx_m = blockIdx.y; 
+  int blk_idx_n = blockIdx.x; 
 
-
-
-//   make_gmem_ptr(A): 拿到全局指针 A
-//   make_shape(M,K): 告诉 CUTE，这块内存逻辑上是2D的 M 行 K 列
-//   dA：比如传入了(1,ldA)
-//   mA 现在代表 M × K 的矩阵。你可以用 mA(i, j) 访问相关元素，CUTE 会自动找出 A+ i*1+ j*ldA 这个地址对应的元素
-//   这一步去设置好全局视图————设置好全局的shape和stride
-auto wholeA = make_tensor(make_gmem_ptr(A), make_shape(M,K), make_stride(1,ldA));
-auto wholeB = make_tensor(make_gmem_ptr(B), make_shape(K,N), make_stride(1,ldB));
-auto wholeC = make_tensor(make_gmem_ptr(C), make_shape(M,N), make_stride(1,ldC));
-
-
-//切出 Block 负责的整个长条,注意与开头的任务划分讲解部分进行对应
-//local_tile(大矩阵, 小块形状, 小块在"块坐标系下"的坐标)，最后映射回去，实际的起始位置 = 块坐标 × 块形状
-//wholeA是（M，K）的，make_shape的第 1 维大小是 _ (Underscore)，意思是 “继承大矩阵在该维度的剩余长度”。在这里，就是继承 K
-auto wholeA_for_cur_block = local_tile(wholeA,make_shape(BM,_), make_coord(blockIdx.y, _));//在 M 维度上切分，取第 blockIdx.y 块；在 K 维度上不切分，全都要
-auto wholeB_for_cur_block = local_tile(wholeB,make_shape(_,BN), make_coord(_, blockIdx.x));//在 N 维度上切分，取第 blockIdx.x 块；在 K 维度上不切分，全都要
-auto wholeC_for_cur_block = local_tile(wholeC,make_shape(BM,BN), make_coord(blockIdx.y, blockIdx.x));
-
-
-
-auto tid = threadIdx.y * THREADS_N + threadIdx.x; // 0 ~ 127 
-
-// ==========================================================================
-// 【阶段一：C 的分配】确定每个线程负责算哪一块 C (16x8)
-// ==========================================================================
-// 布局：(8, 16) -> 128 线程
-// 每个线程负责：(128/8, 128/16) = (16, 8) -> 完美匹配 Tensor Core!
-// 下面我们就用最直观的分配方式这样去讲解：对于 C：
-//        N 维度 (128 列)
-//        <------------------------------------------------------>
-//        +--------+--------+--------+--------+ ... +--------+--------+
-//  M     |        |        |        |        |     |        |        |
-//  ^     |Block(0,0)|Block(0,1)|Block(0,2)|Block(0,3)| ... |Block(0,15)|
-//  |     |(16 行 x8 列)|(16 行 x8 列)|(16 行 x8 列)|(16 行 x8 列)|     |(16 行 x8 列)|
-//  |     |        |        |        |        |     |        |        |
-//  |     +--------+--------+--------+--------+ ... +--------+--------+
-//  |     |        |        |        |        |     |        |        |
-//  |     |Block(1,0)|Block(1,1)|Block(1,2)|Block(1,3)| ... |Block(1,15)|
-//  |     |(16 行 x8 列)|(16 行 x8 列)|(16 行 x8 列)|(16 行 x8 列)|     |(16 行 x8 列)|
-//  |     |        |        |        |        |     |        |        |
-//  |     +--------+--------+--------+--------+ ... +--------+--------+
-//  |     |                  ... (共 8 行块) ...                       |
-//  |     +--------+--------+--------+--------+ ... +--------+--------+
-//  |     |        |        |        |        |     |        |        |
-//  |     |Block(7,0)|Block(7,1)|Block(7,2)|Block(7,3)| ... |Block(7,15)|
-//  |     |(16 行 x8 列)|(16 行 x8 列)|(16 行 x8 列)|(16 行 x8 列)|     |(16 行 x8 列)|
-//  |     |        |        |        |        |     |        |        |
-//  v     +--------+--------+--------+--------+ ... +--------+--------+
-// (128 行)
-
-auto c_thread_layout = make_layout(make_shape(THREADS_M, THREADS_N)); // (8, 16)
-auto c_thread_coord  = make_coord(threadIdx.y, threadIdx.x);
-
-// ==========================================================================
-// 阶段二：数据的 load 阶段：从 gm->smem:
-// ==========================================================================
-// 对于 A：
-// 总共是 128*8=1024 个元素。128 个线程平分。
-// 一个很直观的分配方式就是：每个小块的大小是 (128/128, 8/1) = (1, 8)。即每人负责读取一行。
-// M 维度 (128 行)
-// ^
-// |  [------------------ 8 cols (K 维度) ------------------]
-// |  +-------------------------------------------------------+
-// |  |  tid0 (Row 0)                                         |  
-// |  |  (负责 1*8)                                           |
-// |  |                                                       |
-// |  |  tid1 (Row 1)                                         |  
-// |  |  (负责 1*8)                                           |
-// |  |                ...............                        |
-// |  |                ...............                        |
-// |  |  tid127 (Row 127)                                     |
-// |  |  (负责 1*8)                                           |
-// |  +-------------------------------------------------------+
-auto a_load_layout = make_layout(make_shape(128, 1)); // 128 行，1 列 (逻辑上每人占一个位置)
-auto a_load_coord  = make_coord(tid, 0);              // 第 tid 行
-
-//对于 B：
-// 总共是 8*128=1024 个元素。128 个线程平分。
-// 一个很直观的分配方式就是：每个小块的大小是 (8/1, 128/128) = (8, 1)。即每人负责读取一列。
-// K 维度 (8 行)
-// ^
-// |  [------------------ 128 cols (N 维度) ------------------]
-// |  +-------------------------------------------------------+
-// |  |  tid0   tid1   tid2  ...  tid127                      |  
-// |  | (Col0) (Col1) (Col2)      (Col127)                    |
-// |  | (8*1)  (8*1)  (8*1)       (8*1)                       |
-// |  |                                                       |
-// |  +-------------------------------------------------------+
-auto b_load_layout = make_layout(make_shape(1, 128)); // 1 行，128 列
-auto b_load_coord  = make_coord(0, tid);              // 第 tid 列
-
-
-// ==========================================================================
-// 阶段三：计算部分的分配：根据每个线程负责算哪一块 C (16x8)，找到对应的 smemA，smemB
-// ==========================================================================
-// 计算阶段：smem->reg
-// 我们的每个 thread 为了去计算 C 中自己负责的这样一个 16*8 的小块，
-// 那么它需要从 A 中拿到对应的 16*8 的小块，从 B 中拿到对应的 8*8 的小块。
-
-// 我们发现：
-// 要去算 C 的 Block(0,0) (16x8)，需要拿到 smemA 的前 16 行 (0-15)，以及 smemB 的前 8 列 (0-7)。
-// 要去算 C 的 Block(0,1) (16x8)，需要拿到 smemA 的前 16 行 (0-15)，以及 smemB 的第 8-15 列。
-// 要去算 C 的 Block(1,0) (16x8)，需要拿到 smemA 的第 16-31 行，以及 smemB 的前 8 列。
-// 以此类推...
-
-// 因此，画出来的划分图就是：
-// SMEM A (128 rows x 8 cols)
-// +-------------------------------------------------------+
-// |  ROW BLOCK 0 (Rows 0-15)                              |
-// |  [ Threads 0~15 (M_idx=0) 都要读取这一块 ]             |
-// |  (每个线程都把这 16x8 加载到自己的寄存器)                |
-// +-------------------------------------------------------+
-// |  ROW BLOCK 1 (Rows 16-31)                             |
-// |  [ Threads 16~31 (M_idx=1) 都要读取这一块 ]            |
-// +-------------------------------------------------------+
-// |  ...                                                  |
-// +-------------------------------------------------------+
-// |  ROW BLOCK 7 (Rows 112-127)                           |
-// |  [ Threads 112~127 (M_idx=7) 都要读取这一块 ]          |
-// +-------------------------------------------------------+
-
-// SMEM B (8 rows x 128 cols)
-// +------+------+------+------ ... ------+------+------+------+
-// | CB 0 | CB 1 | CB 2 | ...            | CB 15| CB 16| ...  |
-// | 8x8  | 8x8  | 8x8  |                | 8x8  | 8x8  |      |
-// +------+------+------+------ ... ------+------+------+------+
-//   ^      ^      ^                        ^      ^
-//   |      |      |                        |      |
-// T0~7   T8~15  T16~23                 T120~127 ...
-// (每 8 个线程共享一块 8x8)
-
-
-auto a_comp_layout = make_layout(make_shape(THREADS_M, 1)); // (8, 1)
-auto a_comp_coord  = make_coord(threadIdx.y, 0); 
-
-auto b_comp_layout = make_layout(make_shape(1, THREADS_N)); // (1, 16)
-auto b_comp_coord  = make_coord(0, threadIdx.x); 
-
-//我们在这里划分完了每个thread看到了自己所在的block的tensor局部视图之后要负责的任务，
-//然后在循环中，我们只需要把这个block负责的A，B的tensor进行更新即可
-
-//我们在实际开始计算之前只是用local_tile这样的去划分出每个block要负责的"小块"
-//以及使用make_layout,make_coord去划分出每个thread要负责的"小小块"
-//在真正开始计算的时候才是：根据block负责的小块，用local_partition+thread划分的layout和当前thread的coord去找到每个thread要负责的那个tensor
-//做copy以及用mma指令的时候，需要用local_partition去找到每个thread负责的那个tensor片段才能处理
-
-// 注意：此时只是分配空间（元数据），还没有数据搬运。
-// 我们根据后续会使用到的tensor的形状，去先分配好对应的寄存器片段
-auto register_fragment_A_for_mma_input = make_fragment_like(
-    local_partition(sA, a_comp_layout, a_comp_coord)
-);
-
-auto register_fragment_B_for_mma_input = make_fragment_like(
-    local_partition(sB, b_comp_layout, b_comp_coord)
-);
-
-auto register_fragment_C_accumulator_for_final_result = make_fragment_like(
-    local_partition(wholeC_for_cur_block, c_thread_layout, c_thread_coord)
-);
-clear(register_fragment_C_accumulator_for_final_result);
-
-
-int num_k_steps = K / BK;
-for(int k_step = 0; k_step < num_k_steps; ++k_step){
-
-  auto gA_tile_for_current_k_step = local_tile(
-      wholeA_for_cur_block, 
-      make_shape(BM, BK), 
-      make_coord(_, k_step) // M 维度全取，K 维度取第 k_step 块
-  );
-
-  auto gB_tile_for_current_k_step = local_tile(
-      wholeB_for_cur_block, 
-      make_shape(BK, BN), 
-      make_coord(k_step, _) // K 维度取第 k_step 块，N 维度全取
-  );
-
-  //把每个thread要负责的tensor写出来：
-  auto gA_load_thread = local_partition(gA_tile_for_current_k_step, a_load_layout, a_load_coord);
-  auto gB_load_thread = local_partition(gB_tile_for_current_k_step, b_load_layout, b_load_coord);
-  auto sA_load_thread = local_partition(sA, a_load_layout, a_load_coord);
-  auto sB_load_thread = local_partition(sB, b_load_layout, b_load_coord);
+  //把GMEM用tensor包装
+  auto gA_full = make_tensor(make_gmem_ptr(A), make_shape(M, K), stride_gA); 
+  auto gB_full = make_tensor(make_gmem_ptr(B), make_shape(N, K), stride_gB); 
+  auto gC_full = make_tensor(make_gmem_ptr(C), make_shape(M, N), stride_gC); 
   
-  // 实际做数据加载，从gm->smem
-  copy(gA_load_thread, sA_load_thread);
-  copy(gB_load_thread, sB_load_thread);
 
-  __syncthreads();
+  //实际分配SMEM+对其用tensor包装
+  __shared__ TA smem_A[BM*BK];//在CUTE中我们一般写一维数组+用layout去逻辑上处理
+  __shared__ TB smem_B[BN*BK];
 
-  auto sA_compute_thread = local_partition(sA, a_comp_layout, a_comp_coord);
-  auto sB_compute_thread = local_partition(sB, b_comp_layout, b_comp_coord);
+  //对于make_layout如果不填写stride的话，是默认列优先布局的
+  auto layout_sA = make_layout(make_shape(BM, BK)); 
+  auto layout_sB = make_layout(make_shape(BN, BK));
+  auto layout_sC = make_layout(make_shape(BM, BN));
+  //block维度的编程：将原始的shared memory指针包装成带有定义好 Layout 的 CUTE Tensor
+  auto sA = make_tensor(make_smem_ptr(smem_A), layout_sA); 
+  auto sB = make_tensor(make_smem_ptr(smem_B), layout_sB); 
 
-  //从smem->reg
-  copy(sA_compute_thread, register_fragment_A_for_mma_input);
-  copy(sB_compute_thread, register_fragment_B_for_mma_input);
+  //具体任务的执行分配到thread维度：从gA->sA,gB->sB的load操作
+  //得到每个thread要负责的tensor
+  auto thread_layout_sA_load = make_layout(make_shape(Int<32>{},Int<8>{})); 
+  auto thread_layout_sB_load = make_layout(make_shape(Int<32>{}, Int<8>{}));
+  auto sA_load_cur_thread = local_partition(sA,thread_layout_sA_load,threadIdx.x);
+  auto sB_load_cur_thread = local_partition(sB,thread_layout_sB_load,threadIdx.x);
 
-  // 现在数据都在寄存器里了，调用 Tensor Core 指令。
-  // 公式：C_accumulator = A_input * B_input + C_accumulator
-  mma_atom(
-      register_fragment_A_for_mma_input,          // 输入 A (16x8)
-      register_fragment_B_for_mma_input,          // 输入 B (8x8)
-      register_fragment_C_accumulator_for_final_result // 输入/输出 C (16x8)
-  );
+  //使用smem的值去做计算，分配到thread维度：
+  //对于整个blockC的tensor：被按照shape为(16,16)，stride为（1，16）这样的列主序
+  //smemA和smemB都是（128，8）的shape。如果把他们都按照行切成条带
+  //在分块的维度上：算C0需要A0和B0，算C1需要A1和B0...
+  auto thread_layout_sA_use = make_layout(make_shape(Int<16>{},Int<1>{}));
+  auto thread_layout_sB_use = make_layout(make_shape(Int<16>{},Int<1>{}));
+  auto tid_rowA = threadIdx.x%16;//因为我们发现对于C做了分块后，第一列的所有块由threadIdx.x=0~15分别去负责
+  auto tid_rowB = threadIdx.x/16;
+  auto sA_use_cur_thread = local_partition(sA,thread_layout_sA_use,tid_rowA);
+  auto sB_use_cur_thread = local_partition(sB,thread_layout_sB_use,tid_rowB);
 
-  // 确保所有线程都算完了，才能进入下一轮循环去覆盖 SMEM 中的数据
-  __syncthreads();
+
+  //在block维度上确定任务分配：去思考每个block要负责GMEM中的哪一块&每个block要负责SMEM中的哪一块
+  //local_tile可以用2D坐标，local_partition只能使用1D坐标，然后用layout去反解
+  auto gC_blk_shape = make_shape(BM, BN);
+  auto gC_blk_coord = make_coord(blk_idx_m, blk_idx_n);
+  auto gC_cur_block = local_tile(gC_full, gC_blk_shape, gC_blk_coord);//用"块坐标"去理解local_tile
+  
+  //然后是要把block的任务划分到每个thread去做,注意要根据gC_cur_block这个tensor以及我们的总thread数去进行分析,比如我们这里让256个thread按照列优先的顺序铺到gC_cur_block这个tensor上
+  auto thread_layout_gC = make_layout(make_shape(Int<16>{},Int<16>{}));//这里必须要使用Int<16>，不能直接写16：因为后续使用了make_fragment_like(gC_cur_thread); 这意味着这个tensor需要在编译期已知所有信息
+  auto gC_cur_thread = local_partition(gC_cur_block,thread_layout_gC,threadIdx.x);//这得到的是一个tensor，只是一个视图，还没有实际数据的搬运和计算发生
+
+
+  // 创建一个与输出 Tile 划分 (gC_cur_thread) 布局匹配的寄存器片段
+  // 因为是用于分配寄存器的，因此gC_cur_thread这个tensor必须是编译期已知的
+  auto tCrC_acc = make_fragment_like(gC_cur_thread); 
+  clear(tCrC_acc); // 清零累加器
+
+  for(int k=0;k<grid_k;k++){
+    auto gA_cur_block = local_tile(gA_full,make_shape(BM,BK),make_coord(blk_idx_m,k));
+    auto gB_cur_block = local_tile(gB_full,make_shape(BN,BK),make_coord(blk_idx_n,k));
+
+    //因为现在我们找到的gA_cur_block和sA_cur_block是一样的shape和stride，一种简单的分配方式就是：在局部视图上：每个thread从gA的(i,j)位置读取，写入到sA的(i,j)位置
+    auto thread_layout_gA_read = thread_layout_sA_load;
+    auto thread_layout_gB_read = thread_layout_sB_load;
+
+    auto gA_read_cur_thread = local_partition(gA_cur_block,thread_layout_gA_read,threadIdx.x);
+    auto gB_read_cur_thread = local_partition(gB_cur_block,thread_layout_gB_read,threadIdx.x);
+    
+    copy(gA_read_cur_thread,sA_load_cur_thread);//在thread维度上才能实际地去做数据从gm搬运到smem的操作
+    copy(gB_read_cur_thread,sB_load_cur_thread);
+    __syncthreads(); // 确保所有线程完成 SMEM 写入后再继续
+
+    gemm(sA_use_cur_thread, sB_use_cur_thread, tCrC_acc);
+    __syncthreads();
+  }
+
+  axpby(alpha, tCrC_acc, beta, gC_cur_thread);
 }
 
-// 当前线程负责的 C 的全局视图 (用于最后写回)
-auto gC_tile_for_storing_result = local_partition(
-    wholeC_for_cur_block, 
-    c_thread_layout, 
-    c_thread_coord
-);
+// =================================================================================================
+// 2. Host 启动器
+// =================================================================================================
 
-copy(
-    register_fragment_C_accumulator_for_final_result, // 源：寄存器 (16x8)
-    gC_tile_for_storing_result                        // 目标：全局内存 (16x8)
-);
-
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//==================
-
-// ============================================================================
-// Host 包装函数
-// ============================================================================
-template <typename TA, typename TB, typename TC>
-void gemm(int m, int n, int k,
-          TA const* A, int ldA,
-          TB const* B, int ldB,
-          TC*       C, int ldC,
-          cudaStream_t stream = 0)
+template <typename TA, typename TB, typename TC,
+          typename Alpha, typename Beta>
+void
+gemm(int m, int n, int k,
+     Alpha alpha,
+     TA const* A, int ldA,
+     TB const* B, int ldB,
+     Beta beta,
+     TC      * C, int ldC,
+     cudaStream_t stream = 0)
 {
-  constexpr int BM = 128;
-  constexpr int BN = 128;
-  constexpr int THREADS_M = 8;
-  constexpr int THREADS_N = 16;
+  // 验证：此简化版 Kernel 假设紧密的列优先布局。
+  if (ldA != m || ldB != n || ldC != m) {
+      printf("警告：此简化版 Kernel 仅支持紧密列优先矩阵 (ld==dim)。\n");
+      printf("检测到 ldA=%d (期望 %d), ldB=%d (期望 %d), ldC=%d (期望 %d)。\n", 
+             ldA, m, ldB, n, ldC, m);
+      // 在生产环境中，此处应返回错误或回退到通用 Kernel。
+  }
+
+  auto M = int(m);
+  auto N = int(n);
+  auto K = int(k);
+
+  constexpr auto BM = Int<128>{};
+  constexpr auto BN = Int<128>{};
   
-  dim3 grid((n + BN - 1) / BN, (m + BM - 1) / BM);
-  dim3 block(THREADS_N, THREADS_M); 
+  // 线程块大小源自 C-计算布局 (16x16 = 256 线程)
+  auto thread_layout_gC = make_layout(make_shape(Int<16>{}, Int<16>{}));
+  dim3 dimBlock(size(thread_layout_gC)); 
+  
+  // Grid 维度：(N_blocks, M_blocks) -> 注意：CUDA grid 是 (x, y)，我们将 x 映射到 N，y 映射到 M
+  dim3 dimGrid(ceil_div(n, BN), ceil_div(m, BM));
 
-  gemm_device<TA, TB, TC><<<grid, block, 0, stream>>>(
-      m, n, k,
-      A, ldA,
-      B, ldB,
-      C, ldC
-  );
+  // 启动 Kernel
+  gemm_device<<<dimGrid, dimBlock, 0, stream>>>(
+      M, N, K,
+      A, B, C,
+      alpha, beta);
+  
+  // 检查启动错误
+  cudaError_t err = cudaGetLastError();
+  if (err != cudaSuccess) {
+      printf("Kernel 启动失败：%s\n", cudaGetErrorString(err));
+      exit(1);
+  }
 }
 
-// ============================================================================
-// 测试函数 (关键修改在这里)
-// ============================================================================
-void run_gemm_mixed_precision(int m, int n, int k) {
-    std::cout << "Running Mixed Precision GEMM (F16xF16->F32): " 
-              << m << "x" << n << "x" << k << std::endl;
+// =================================================================================================
+// 3. Main 函数与验证
+// =================================================================================================
 
-    // 1. 定义类型：输入是 half，输出是 float
-    using InputType = cute::half_t; // 或者 __half
-    using OutputType = float;
+#include <cstdio>
+#include <cstdlib>
+#include <cmath>
+#include <vector>
 
-    // 2. 主机内存分配
-    thrust::host_vector<InputType> h_A(m * k);
-    thrust::host_vector<InputType> h_B(k * n);
-    thrust::host_vector<OutputType> h_C(m * n, 0.0f);
-
-    // 3. 初始化数据 (随机生成 float 然后转为 half)
-    std::mt19937 gen(42);
-    std::uniform_real_distribution<float> dis(0.0f, 1.0f);
-
-    for (int i = 0; i < m * k; ++i) {
-        h_A[i] = InputType(dis(gen));
+// 参考 CPU GEMM: C = alpha * A * B^T + beta * C
+// 假设列优先存储
+void reference_gemm(int m, int n, int k, float alpha, const float* A, const float* B, float beta, float* C) {
+    for (int i = 0; i < m; ++i) {
+        for (int j = 0; j < n; ++j) {
+            float acc = 0.0f;
+            for (int l = 0; l < k; ++l) {
+                // A(i, l) * B(j, l) 因为数学上是 B 转置 (B^T)
+                // 在列优先中：A[i + l*m], B[j + l*n]
+                acc += A[i + l * m] * B[j + l * n];
+            }
+            C[i + j * m] = alpha * acc + beta * C[i + j * m];
+        }
     }
-    for (int i = 0; i < k * n; ++i) {
-        h_B[i] = InputType(dis(gen));
-    }
-
-    // 4. 设备内存分配
-    thrust::device_vector<InputType> d_A = h_A;
-    thrust::device_vector<InputType> d_B = h_B;
-    thrust::device_vector<OutputType> d_C = h_C;
-
-    // 5. 启动 Kernel
-    // 【关键修改 3】模板参数明确指定：<half, half, float>
-    gemm<InputType, InputType, OutputType>(
-        m, n, k,
-        d_A.data().get(), m,   // ldA
-        d_B.data().get(), k,   // ldB
-        d_C.data().get(), m    // ldC
-    );
-
-    // 6. 错误检查
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess) {
-        std::cerr << "Launch Error: " << cudaGetErrorString(err) << std::endl;
-        return;
-    }
-
-    err = cudaDeviceSynchronize();
-    if (err != cudaSuccess) {
-        std::cerr << "Sync Error: " << cudaGetErrorString(err) << std::endl;
-        return;
-    }
-
-    std::cout << "GEMM Completed Successfully!" << std::endl;
-    
-    // 打印结果 (结果是 float)
-    thrust::host_vector<OutputType> h_result = d_C;
-    std::cout << "First 5 elements of C (float): ";
-    for(int i=0; i<5; ++i) {
-        std::cout << h_result[i] << " ";
-    }
-    std::cout << std::endl;
 }
 
-int main() {
-    int m = 1024, n = 1024, k = 1024;
-    
-    // 运行混合精度版本
-    run_gemm_mixed_precision(m, n, k);
-    
-    return 0;
+// 验证工具函数
+bool verify_result(int m, int n, const float* gpu, const float* cpu, float tol = 1e-4f) {
+    int max_err_idx = -1;
+    float max_err = 0.0f;
+    for (int i = 0; i < m * n; ++i) {
+        float diff = std::abs(gpu[i] - cpu[i]);
+        if (diff > max_err) {
+            max_err = diff;
+            max_err_idx = i;
+        }
+    }
+    if (max_err > tol) {
+        int row = max_err_idx % m;
+        int col = max_err_idx / m;
+        printf("失败：最大误差 %f 位于 (%d, %d)。GPU: %f, CPU: %f\n", 
+               max_err, row, col, gpu[max_err_idx], cpu[max_err_idx]);
+        return false;
+    }
+    printf("通过：最大误差 %f 在容忍度 %f 范围内\n", max_err, tol);
+    return true;
+}
+
+int main(int argc, char** argv) {
+    int m = 512, n = 1024, k = 2560;
+    if (argc >= 2) m = atoi(argv[1]);
+    if (argc >= 3) n = atoi(argv[2]);
+    if (argc >= 4) k = atoi(argv[3]);
+
+    printf("运行 GEMM 验证：M=%d, N=%d, K=%d\n", m, n, k);
+
+    size_t size_A = m * k;
+    size_t size_B = n * k;
+    size_t size_C = m * n;
+
+    std::vector<float> h_A(size_A), h_B(size_B), h_C_gpu(size_C, 0.0f), h_C_cpu(size_C, 0.0f);
+
+    // 用随机值初始化输入
+    for (size_t i = 0; i < size_A; ++i) h_A[i] = (float)(rand() % 10) / 10.0f;
+    for (size_t i = 0; i < size_B; ++i) h_B[i] = (float)(rand() % 10) / 10.0f;
+
+    float *d_A, *d_B, *d_C;
+    cudaMalloc(&d_A, size_A * sizeof(float));
+    cudaMalloc(&d_B, size_B * sizeof(float));
+    cudaMalloc(&d_C, size_C * sizeof(float));
+
+    cudaMemcpy(d_A, h_A.data(), size_A * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_B, h_B.data(), size_B * sizeof(float), cudaMemcpyHostToDevice);
+
+    float alpha = 1.0f;
+    float beta = 0.0f;
+
+    // 启动 GPU Kernel
+    // 注意：传入 ldA=m, ldB=n, ldC=m 以匹配 Kernel 的假设
+    gemm(m, n, k, alpha, d_A, m, d_B, n, beta, d_C, m);
+    cudaDeviceSynchronize();
+
+    // 运行 CPU 参考实现
+    reference_gemm(m, n, k, alpha, h_A.data(), h_B.data(), beta, h_C_cpu.data());
+
+    // 拷贝结果回主机
+    cudaMemcpy(h_C_gpu.data(), d_C, size_C * sizeof(float), cudaMemcpyDeviceToHost);
+
+    // 验证
+    bool passed = verify_result(m, n, h_C_gpu.data(), h_C_cpu.data());
+
+    cudaFree(d_A); cudaFree(d_B); cudaFree(d_C);
+
+    return passed ? 0 : 1;
 }
