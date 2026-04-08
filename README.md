@@ -565,21 +565,21 @@ shared_memory+warp_shuffle,每个thread负责一个元素
 
 |📖 类型-标题|📖 作者| 📖 推荐 |
 |:---|:---|:---|
-|ok [[cute系列详解][入门]📖cutlass cute 101](https://zhuanlan.zhihu.com/p/660379052)|@朱小霖|⭐️⭐️⭐️|
-|ok [[cute系列详解][入门]📖CUTLASS 2.x & CUTLASS 3.x Intro 学习笔记](https://zhuanlan.zhihu.com/p/710516489)|@BBuf|⭐️⭐️⭐️|
-|ok [[cute系列详解][Layout]📖cute 之 Layout](https://zhuanlan.zhihu.com/p/661182311)|@reed|⭐️⭐️⭐️|
+|[~~[cute系列详解][入门]📖cutlass cute 101~~](https://zhuanlan.zhihu.com/p/660379052)|@朱小霖|⭐️⭐️⭐️|
+|[~~[cute系列详解][入门]📖CUTLASS 2.x & CUTLASS 3.x Intro 学习笔记~~](https://zhuanlan.zhihu.com/p/710516489)|@BBuf|⭐️⭐️⭐️|
+|[~~[cute系列详解][Layout]📖cute 之 Layout~~](https://zhuanlan.zhihu.com/p/661182311)|@reed|⭐️⭐️⭐️|
 |还要再看 [[cute系列详解][Layout]📖cute Layout 的代数和几何解释](https://zhuanlan.zhihu.com/p/662089556)|@reed|⭐️⭐️⭐️|
-|ok [[cute系列详解][Tensor]📖cute 之 Tensor](https://zhuanlan.zhihu.com/p/663093816)|@reed|⭐️⭐️⭐️|
-| [[cute系列详解][MMA]📖cute 之 MMA抽象](https://zhuanlan.zhihu.com/p/663092747)|@reed|⭐️⭐️⭐️|
-| [[cute系列详解][Copy]📖cute 之 Copy抽象](https://zhuanlan.zhihu.com/p/666232173)|@reed|⭐️⭐️⭐️|
+|[~~[cute系列详解][Tensor]📖cute 之 Tensor~~](https://zhuanlan.zhihu.com/p/663093816)|@reed|⭐️⭐️⭐️|
+|[~~[cute系列详解][MMA]📖cute 之 MMA抽象~~](https://zhuanlan.zhihu.com/p/663092747)|@reed|⭐️⭐️⭐️|
+|[~~[cute系列详解][Copy]📖cute 之 Copy抽象~~](https://zhuanlan.zhihu.com/p/666232173)|@reed|⭐️⭐️⭐️|
+|[~~[cute系列详解][GEMM]📖cute 之 简单GEMM实现~~](https://zhuanlan.zhihu.com/p/667521327)|@reed|⭐️⭐️⭐️|
+| [~~[cute系列详解][GEMM]📖cute 之 GEMM流水线~~](https://zhuanlan.zhihu.com/p/665082713)|@reed|⭐️⭐️⭐️|
+| [[cute系列详解][GEMM]📖cute 之 高效GEMM实现](https://zhuanlan.zhihu.com/p/675308830)|@reed|⭐️⭐️⭐️|
 | [[cute系列详解][Swizzle]📖cute 之 Swizzle](https://zhuanlan.zhihu.com/p/671419093)|@reed|⭐️⭐️⭐️|
 | [[cute系列详解][Swizzle]📖cute Swizzle细谈](https://zhuanlan.zhihu.com/p/684250988)|@进击的Killua|⭐️⭐️⭐️|
 | [[cute系列详解][Swizzle]📖cutlass swizzle机制解析（一）](https://zhuanlan.zhihu.com/p/710337546)|@Titus|⭐️⭐️⭐️|
 | [[cute系列详解][Swizzle]📖cutlass swizzle机制解析（二）](https://zhuanlan.zhihu.com/p/711398930)|@Titus|⭐️⭐️⭐️|
 | [[cute系列详解][Swizzle]📖CUDA避免smem bank conflict的swizzle机制解析](https://zhuanlan.zhihu.com/p/4746910252)|@frankshi|⭐️⭐️⭐️|
-| [[cute系列详解][GEMM]📖cute 之 简单GEMM实现](https://zhuanlan.zhihu.com/p/667521327)|@reed|⭐️⭐️⭐️|
-| [[cute系列详解][GEMM]📖cute 之 GEMM流水线](https://zhuanlan.zhihu.com/p/665082713)|@reed|⭐️⭐️⭐️|
-| [[cute系列详解][GEMM]📖cute 之 高效GEMM实现](https://zhuanlan.zhihu.com/p/675308830)|@reed|⭐️⭐️⭐️|
 | [[cute系列详解][GEMM]📖GEMM流水线: single/multi-stage、pipeline](https://zhuanlan.zhihu.com/p/712451053)|@Titus|⭐️⭐️⭐️|
 | [[cute系列详解][GEMM]📖GEMM细节分析(一): ldmatrix的选择](https://zhuanlan.zhihu.com/p/702818267)|@Anonymous|⭐️⭐️⭐️|
 | [[cute系列详解][GEMM]📖GEMM细节分析(二): TiledCopy与cp.async](https://zhuanlan.zhihu.com/p/703560147)|@Anonymous|⭐️⭐️⭐️|
