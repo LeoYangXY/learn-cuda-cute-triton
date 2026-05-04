@@ -574,7 +574,7 @@ shared_memory+warp_shuffle,每个thread负责一个元素
 |[~~[cute系列详解][Copy]📖cute 之 Copy抽象~~](https://zhuanlan.zhihu.com/p/666232173)|@reed|⭐️⭐️⭐️|
 |[~~[cute系列详解][GEMM]📖cute 之 简单GEMM实现~~](https://zhuanlan.zhihu.com/p/667521327)|@reed|⭐️⭐️⭐️|
 | [~~[cute系列详解][GEMM]📖cute 之 GEMM流水线~~](https://zhuanlan.zhihu.com/p/665082713)|@reed|⭐️⭐️⭐️|
-| [[cute系列详解][GEMM]📖cute 之 高效GEMM实现](https://zhuanlan.zhihu.com/p/675308830)|@reed|⭐️⭐️⭐️|
+| [~~[cute系列详解][GEMM]📖cute 之 高效GEMM实现~~](https://zhuanlan.zhihu.com/p/675308830)|@reed|⭐️⭐️⭐️|
 | [[cute系列详解][Swizzle]📖cute 之 Swizzle](https://zhuanlan.zhihu.com/p/671419093)|@reed|⭐️⭐️⭐️|
 | [[cute系列详解][Swizzle]📖cute Swizzle细谈](https://zhuanlan.zhihu.com/p/684250988)|@进击的Killua|⭐️⭐️⭐️|
 | [[cute系列详解][Swizzle]📖cutlass swizzle机制解析（一）](https://zhuanlan.zhihu.com/p/710337546)|@Titus|⭐️⭐️⭐️|
