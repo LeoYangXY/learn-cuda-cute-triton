@@ -568,14 +568,14 @@ shared_memory+warp_shuffle,每个thread负责一个元素
 |[~~[cute系列详解][入门]📖cutlass cute 101~~](https://zhuanlan.zhihu.com/p/660379052)|@朱小霖|⭐️⭐️⭐️|
 |[~~[cute系列详解][入门]📖CUTLASS 2.x & CUTLASS 3.x Intro 学习笔记~~](https://zhuanlan.zhihu.com/p/710516489)|@BBuf|⭐️⭐️⭐️|
 |[~~[cute系列详解][Layout]📖cute 之 Layout~~](https://zhuanlan.zhihu.com/p/661182311)|@reed|⭐️⭐️⭐️|
-|还要再看 [[cute系列详解][Layout]📖cute Layout 的代数和几何解释](https://zhuanlan.zhihu.com/p/662089556)|@reed|⭐️⭐️⭐️|
+|[~~[cute系列详解][Layout]📖cute Layout 的代数和几何解释~~](https://zhuanlan.zhihu.com/p/662089556)|@reed|⭐️⭐️⭐️|
 |[~~[cute系列详解][Tensor]📖cute 之 Tensor~~](https://zhuanlan.zhihu.com/p/663093816)|@reed|⭐️⭐️⭐️|
 |[~~[cute系列详解][MMA]📖cute 之 MMA抽象~~](https://zhuanlan.zhihu.com/p/663092747)|@reed|⭐️⭐️⭐️|
 |[~~[cute系列详解][Copy]📖cute 之 Copy抽象~~](https://zhuanlan.zhihu.com/p/666232173)|@reed|⭐️⭐️⭐️|
 |[~~[cute系列详解][GEMM]📖cute 之 简单GEMM实现~~](https://zhuanlan.zhihu.com/p/667521327)|@reed|⭐️⭐️⭐️|
 | [~~[cute系列详解][GEMM]📖cute 之 GEMM流水线~~](https://zhuanlan.zhihu.com/p/665082713)|@reed|⭐️⭐️⭐️|
 | [~~[cute系列详解][GEMM]📖cute 之 高效GEMM实现~~](https://zhuanlan.zhihu.com/p/675308830)|@reed|⭐️⭐️⭐️|
-| [[cute系列详解][Swizzle]📖cute 之 Swizzle](https://zhuanlan.zhihu.com/p/671419093)|@reed|⭐️⭐️⭐️|
+| [~~[cute系列详解][Swizzle]📖cute 之 Swizzle~~](https://zhuanlan.zhihu.com/p/671419093)|@reed|⭐️⭐️⭐️|
 | [[cute系列详解][Swizzle]📖cute Swizzle细谈](https://zhuanlan.zhihu.com/p/684250988)|@进击的Killua|⭐️⭐️⭐️|
 | [[cute系列详解][Swizzle]📖cutlass swizzle机制解析（一）](https://zhuanlan.zhihu.com/p/710337546)|@Titus|⭐️⭐️⭐️|
 | [[cute系列详解][Swizzle]📖cutlass swizzle机制解析（二）](https://zhuanlan.zhihu.com/p/711398930)|@Titus|⭐️⭐️⭐️|
@@ -585,8 +585,8 @@ shared_memory+warp_shuffle,每个thread负责一个元素
 | [[cute系列详解][GEMM]📖GEMM细节分析(二): TiledCopy与cp.async](https://zhuanlan.zhihu.com/p/703560147)|@Anonymous|⭐️⭐️⭐️|
 | [[cute系列详解][GEMM]📖GEMM细节分析(三): Swizzle<B,M,S>参数取值](https://zhuanlan.zhihu.com/p/713713957)|@Anonymous|⭐️⭐️⭐️|
 | [[cute系列详解][实践]📖Hopper Mixed GEMM的CUTLASS实现笔记](https://zhuanlan.zhihu.com/p/714378343)|@BBuf|⭐️⭐️⭐️|
-| [[cute系列详解][实践]📖CUTLASS CuTe实战(一): 基础](https://zhuanlan.zhihu.com/p/690703999)|@进击的Killua|⭐️⭐️⭐️|
-| [[cute系列详解][实践]📖CUTLASS CuTe实战(二): 应用](https://zhuanlan.zhihu.com/p/692078624)|@进击的Killua|⭐️⭐️⭐️|
+| [~~[cute系列详解][实践]📖CUTLASS CuTe实战(一): 基础~~](https://zhuanlan.zhihu.com/p/690703999)|@进击的Killua|⭐️⭐️⭐️|
+| [~~[cute系列详解][实践]📖CUTLASS CuTe实战(二): 应用~~](https://zhuanlan.zhihu.com/p/692078624)|@进击的Killua|⭐️⭐️⭐️|
 | [[cute系列详解][实践]📖FlashAttention fp8实现（ada架构)](https://zhuanlan.zhihu.com/p/712314257)|@shengying.wei|⭐️⭐️⭐️|
 | [[cute系列详解][实践]📖FlashAttention 笔记: tiny-flash-attention解读](https://zhuanlan.zhihu.com/p/708867810)|@shengying.wei|⭐️⭐️⭐️|
 | [[cute系列详解][实践]📖使用cutlass cute复现flash attention](https://zhuanlan.zhihu.com/p/696323042)|@66RING|⭐️⭐️⭐️|
