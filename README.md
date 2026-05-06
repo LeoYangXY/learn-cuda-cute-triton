@@ -1,471 +1,88 @@
-练习cuda-kernel，参考leet-cuda学习
-
-
-每个kernel都使用单文件组织，避免复杂的目录结构，工具函数直接贴在当前文件开头
-
-
-我们主要写fp32数据类型，不做过多数据类型的  
-ok代表已完成，no代表我们不去做这个的
-
-
-### 📌 Elementwise Ops
-
-ok！
-
-| 完成情况 | CUDA 内核 | 元素数据类型 | 累加数据类型 | 难度 |
-|:---|:---|:---|:---|:---|
-|  | elementwise_f32 | f32 | / | ⭐️ |
-|  | elementwise_f32x4 | f32 | / | ⭐️ |
-|  | elementwise_f16 | f16 | / | ⭐️ |
-|  | elementwise_f16x2 | f16 | / | ⭐️ |
-|  | elementwise_f16x8 | f16 | / | ⭐️ |
-|  | elementwise_f16x8_pack | f16 | / | ⭐️⭐️ |
-
-float4去处理fp32，一次性读取4个
-half2去处理fp16，一次性读取2个
-每个thread申请4个half2，负责8个元素
-直接reinterpret_cast去读出128bits，用这个pack版本处理half
-
-<!-- 
-- 
-- 
-- 
-- 
--->
-
-
-
-
-
-### 📌 Activation Functions
-
-和elementwise里面的kernel几乎一致，不再写了！！
-
-| 完成情况 | CUDA 内核 | 元素数据类型 | 累加数据类型 | 难度 |
-|:---|:---|:---|:---|:---|
-|  | sigmoid_f32 | f32 | / | ⭐️ |
-|  | sigmoid_f32x4 | f32 | / | ⭐️ |
-|  | sigmoid_f16 | f16 | / | ⭐️ |
-|  | sigmoid_f16x2 | f16 | / | ⭐️ |
-|  | sigmoid_f16x8 | f16 | / | ⭐️ |
-|  | sigmoid_f16x8_pack | f16 | / | ⭐️⭐️ |
-|  | relu_f32 | f32 | / | ⭐️ |
-|  | relu_f32x4 | f32 | / | ⭐️ |
-|  | relu_f16 | f16 | / | ⭐️ |
-|  | relu_f16x2 | f16 | / | ⭐️ |
-|  | relu_f16x8 | f16 | / | ⭐️ |
-|  | relu_f16x8_pack | f16 | / | ⭐️⭐️ |
-|  | elu_f32 | f32 | / | ⭐️ |
-|  | elu_f32x4 | f32 | / | ⭐️ |
-|  | elu_f16 | f16 | / | ⭐️ |
-|  | elu_f16x2 | f16 | / | ⭐️ |
-|  | elu_f16x8 | f16 | / | ⭐️ |
-|  | elu_f16x8_pack | f16 | / | ⭐️⭐️ |
-|  | gelu_f32 | f32 | / | ⭐️ |
-|  | gelu_f32x4 | f32 | / | ⭐️ |
-|  | gelu_f16 | f16 | / | ⭐️ |
-|  | gelu_f16x2 | f16 | / | ⭐️ |
-|  | gelu_f16x8 | f16 | / | ⭐️ |
-|  | gelu_f16x8_pack | f16 | / | ⭐️⭐️ |
-|  | swish_f32 | f32 | / | ⭐️ |
-|  | swish_f32x4 | f32 | / | ⭐️ |
-|  | swish_f16 | f16 | / | ⭐️ |
-|  | swish_f16x2 | f16 | / | ⭐️ |
-|  | swish_f16x8 | f16 | / | ⭐️ |
-|  | swish_f16x8_pack | f16 | / | ⭐️⭐️ |
-|  | hardswish_f32 | f32 | / | ⭐️ |
-|  | hardswish_f32x4 | f32 | / | ⭐️ |
-|  | hardswish_f16 | f16 | / | ⭐️ |
-|  | hardswish_f16x2 | f16 | / | ⭐️ |
-|  | hardswish_f16x8 | f16 | / | ⭐️ |
-|  | hardswish_f16x8_pack | f16 | / | ⭐️⭐️ |
-|  | hardshrink_f32 | f32 | / | ⭐️ |
-|  | hardshrink_f32x4 | f32 | / | ⭐️ |
-|  | hardshrink_f16 | f16 | / | ⭐️ |
-|  | hardshrink_f16x2 | f16 | / | ⭐️ |
-|  | hardshrink_f16x8 | f16 | / | ⭐️ |
-|  | hardshrink_f16x8_pack | f16 | / | ⭐️⭐️ |
-
-<!-- 
-- 
-- 
-- 
-- 
--->
-
-
-### 📌 Embedding Lookup
-ok!
-| 完成情况 | CUDA 内核 | 元素数据类型 | 累加数据类型 | 难度 |
-|:---|:---|:---|:---|:---|
-|  | embedding_f32 | f32 | / | ⭐️ |
-|  | embedding_f32x4 | f32 | / | ⭐️ |
-|  | embedding_f32x4_pack | f32 | / | ⭐️ |
-|  | embedding_f16 | f16 | / | ⭐️ |
-|  | embedding_f16x2 | f16 | / | ⭐️ |
-|  | embedding_f16x8 | f16 | / | ⭐️ |
-|  | embedding_f16x8_pack | f16 | / | ⭐️⭐️ |
-
-完成了f32以及pack版本，已覆盖上述所有功能
-
-<!-- 
-- 
-- 
-- 
-- 
--->
-
-
-### 📌 Histogram (Integer Only)
-
-| 完成情况 | CUDA 内核 | 元素数据类型 | 累加数据类型 | 难度 |
-|:---|:---|:---|:---|:---|
-|  | histogram_i32 | i32 | / | ⭐️ |
-|  | histogram_i32x4 | i32 | / | ⭐️ |
-
-<!-- 
-- 
-- 
-- 
-- 
--->
-
-
-### 📌 Matrix Transpose
-
-ok
-
-| 完成情况 | CUDA 内核 | 元素数据类型 | 累加数据类型 | 难度 |
-|:---|:---|:---|:---|:---|
-|  | mat_trans_f32_col2row{2d} | f32 | / | ⭐️ |
-|  | mat_trans_f32_row2col{2d} | f32 | / | ⭐️ |
-|  | mat_trans_f32_diagonal2d | f32 | / | ⭐️⭐️ |
-|  | mat_trans_f32x4_col2row{2d} | f32 | / | ⭐️⭐️ |
-|  | mat_trans_f32x4_row2col{2d} | f32 | / | ⭐️⭐️ |
-|  | mat_trans_cute | f32 | / | ⭐️⭐️ |
-
-已完成scaler，float4，使用shared_memory,避免bank conflict 4个版本
-
-<!-- 
-- 
-- 
-- 
-- 
--->
-
-
-### 📌 Warp & Block Reduction
-ok
-
-| 完成情况 | CUDA 内核 | 元素数据类型 | 累加数据类型 | 难度 |
-|:---|:---|:---|:---|:---|
-|  | warp_reduce_{all} | all | all | ⭐️⭐️ |
-|  | block_all_reduce_f32_f32 | f32 | f32 | ⭐️⭐️ |
-|  | block_all_reduce_f32x4_f32 | f32 | f32 | ⭐️⭐️ |
-|  | block_all_reduce_f16_f16 | f16 | f16 | ⭐️⭐️ |
-|  | block_all_reduce_f16_f32 | f16 | f32 | ⭐️⭐️ |
-|  | block_all_reduce_f16x2_f16 | f16 | f16 | ⭐️⭐️ |
-|  | block_all_reduce_f16x2_f32 | f16 | f32 | ⭐️⭐️ |
-|  | block_all_reduce_f16x8_pack_f16 | f16 | f16 | ⭐️⭐️ |
-|  | block_all_reduce_f16x8_pack_f32 | f16 | f32 | ⭐️⭐️ |
-|  | block_all_reduce_bf16_bf16 | bf16 | bf16 | ⭐️⭐️ |
-|  | block_all_reduce_bf16_f32 | bf16 | f32 | ⭐️⭐️ |
-|  | block_all_reduce_bf16x2_bf16 | bf16 | bf16 | ⭐️⭐️ |
-|  | block_all_reduce_bf16x2_f32 | bf16 | f32 | ⭐️⭐️ |
-|  | block_all_reduce_bf16x8_pack_bf16 | bf16 | bf16 | ⭐️⭐️ |
-|  | block_all_reduce_bf16x8_pack_f32 | bf16 | f32 | ⭐️⭐️ |
-|  | block_all_reduce_fp8_e4m3_f16 | fp8_e4m3 | f16 | ⭐️⭐️⭐️ |
-|  | block_all_reduce_fp8_e5m2_f16 | fp8_e5m2 | f16 | ⭐️⭐️⭐️ |
-|  | block_all_reduce_fp8_e4m3x16_pack_f16 | fp8_e4m3 | f16 | ⭐️⭐️⭐️ |
-|  | block_all_reduce_fp8_e5m2x16_pack_f16 | fp8_e5m2 | f16 | ⭐️⭐️⭐️ |
-|  | block_all_reduce_i8_i32 | i8 | i32 | ⭐️⭐️ |
-|  | block_all_reduce_i8x16_pack_i32 | i8 | i32 | ⭐️⭐️ |
-
-只用shared_memory
-shared_memory+warp_shuffle,每个thread负责一个元素
-每个thread负责4个元素，用float4去读取
-用pack去处理128bits的元素，那个LDST128BITS的语法糖
-
-<!-- 
-- 
-- 
-- 
-- 
--->
-
-
-### 📌 Dot Product
-
-| 完成情况 | CUDA 内核 | 元素数据类型 | 累加数据类型 | 难度 |
-|:---|:---|:---|:---|:---|
-|  | dot_product_f32 | f32 | f32 | ⭐️⭐️ |
-|  | dot_product_f32x4 | f32 | f32 | ⭐️⭐️ |
-|  | dot_product_f16_f32 | f16 | f32 | ⭐️⭐️ |
-|  | dot_product_f16x2_f32 | f16 | f32 | ⭐️⭐️ |
-|  | dot_product_f16x8_pack_f32 | f16 | f32 | ⭐️⭐️ |
-
-<!-- 
-- 
-- 
-- 
-- 
--->
-
-
-### 📌 Softmax Variants
-
-| 完成情况 | CUDA 内核 | 元素数据类型 | 累加数据类型 | 难度 |
-|:---|:---|:---|:---|:---|
-|  | softmax_f32_per_tok | f32 | f32 | ⭐️⭐️ |
-|  | softmax_f32x4_per_tok | f32 | f32 | ⭐️⭐️ |
-|  | safe_softmax_f32_per_tok | f32 | f32 | ⭐️⭐️ |
-|  | safe_softmax_f32x4_per_tok | f32 | f32 | ⭐️⭐️ |
-|  | safe_softmax_f16_f32_per_tok | f16 | f32 | ⭐️⭐️ |
-|  | safe_softmax_f16x2_f32_per_tok | f16 | f32 | ⭐️⭐️ |
-|  | safe_softmax_f16x8_pack_f32_per_tok | f16 | f32 | ⭐️⭐️ |
-|  | online_safe_softmax_f32_per_token | f32 | f32 | ⭐️⭐️ |
-|  | online_safe_softmax_f32x4_pack_per_tok | f32 | f32 | ⭐️⭐️ |
-
-<!-- 
-- 
-- 
-- 
-- 
--->
-
-
-### 📌 RoPE (Rotary Position Embedding)
-
-| 完成情况 | CUDA 内核 | 元素数据类型 | 累加数据类型 | 难度 |
-|:---|:---|:---|:---|:---|
-|  | rope_f32 | f32 | f32 | ⭐️⭐️ |
-|  | rope_f32x4_pack | f32 | f32 | ⭐️⭐️ |
-
-<!-- 
-- 
-- 
-- 
-- 
--->
-
-
-### 📌 Layer Normalization
-
-| 完成情况 | CUDA 内核 | 元素数据类型 | 累加数据类型 | 难度 |
-|:---|:---|:---|:---|:---|
-|  | layer_norm_f32 | f32 | f32 | ⭐️⭐️ |
-|  | layer_norm_f32x4 | f32 | f32 | ⭐️⭐️ |
-|  | layer_norm_f16_f16 | f16 | f16 | ⭐️⭐️ |
-|  | layer_norm_f16x2_f16 | f16 | f16 | ⭐️⭐️ |
-|  | layer_norm_f16x8_f16 | f16 | f16 | ⭐️⭐️ |
-|  | layer_norm_f16x8_pack_f16 | f16 | f16 | ⭐️⭐️ |
-|  | layer_norm_f16x8_pack_f32 | f16 | f32 | ⭐️⭐️ |
-|  | layer_norm_f16_f32 | f16 | f32 | ⭐️⭐️ |
-
-已完成，使用一个block去处理1行。
-1个thread处理1个or4个元素
-<!-- 
-- 
-- 
-- 
-- 
--->
-
-
-### 📌 RMS Normalization
-
-| 完成情况 | CUDA 内核 | 元素数据类型 | 累加数据类型 | 难度 |
-|:---|:---|:---|:---|:---|
-|  | rms_norm_f32 | f32 | f32 | ⭐️⭐️ |
-|  | rms_norm_f32x4 | f32 | f32 | ⭐️⭐️ |
-|  | rms_norm_f16_f16 | f16 | f16 | ⭐️⭐️ |
-|  | rms_norm_f16x2_f16 | f16 | f16 | ⭐️⭐️ |
-|  | rms_norm_f16x8_f16 | f16 | f16 | ⭐️⭐️ |
-|  | rms_norm_f16x8_f32 | f16 | f32 | ⭐️⭐️ |
-|  | rms_norm_f16x8_pack_f16 | f16 | f16 | ⭐️⭐️ |
-|  | rms_norm_f16x8_pack_f32 | f16 | f32 | ⭐️⭐️ |
-|  | rms_norm_f16_f32 | f16 | f32 | ⭐️⭐️ |
-
-<!-- 
-- 
-- 
-- 
-- 
--->
-
-
-### 📌 Other Ops
-
-| 完成情况 | CUDA 内核 | 元素数据类型 | 累加数据类型 | 难度 |
-|:---|:---|:---|:---|:---|
-|  | nms_f32 | f32 | / | ⭐️⭐️ |
-|  | merge_attn_states | f16/bf16/f32 | f32 | ⭐️⭐️ |
-|  | notes v1(deprecated) | f32 | f32 | ⭐️⭐️ |
-|  | How to use nsys/ncu(timeline/ptx/sass) | / | / | ⭐️⭐️ |
-
-<!-- 
-- 
-- 
-- 
-- 
--->
-
-
-### 📌 GEMV (Matrix-Vector Multiply)
-
-| 完成情况 | CUDA 内核 | 元素数据类型 | 累加数据类型 | 难度 |
-|:---|:---|:---|:---|:---|
-|  | sgemv_k32_f32 | f32 | f32 | ⭐️⭐️⭐️ |
-|  | sgemv_k128_f32x4 | f32 | f32 | ⭐️⭐️⭐️ |
-|  | sgemv_k16_f32 | f32 | f32 | ⭐️⭐️⭐️ |
-|  | hgemv_k32_f16 | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemv_k128_f16x4 | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemv_k16_f16 | f16 | f16 | ⭐️⭐️⭐️ |
-
-已完成sgemv，暂时不做half数据类型的
-<!-- 
-- 
-- 
-- 
-- 
--->
-
-
-### 📌 GEMM (Matrix-Matrix Multiply)
-
-| 完成情况 | CUDA 内核 | 元素数据类型 | 累加数据类型 | 难度 |
-|:---|:---|:---|:---|:---|
-|  | sgemm_naive_f32 | f32 | f32 | ⭐️⭐️ |
-|  | sgemm_sliced_k_f32 | f32 | f32 | ⭐️⭐️⭐️ |
-|  | sgemm_t_8x8_sliced_k_f32x4 | f32 | f32 | ⭐️⭐️⭐️ |
-|  | sgemm_t_8x8_sliced_k...bcf | f32 | f32 | ⭐️⭐️⭐️ |
-|  | sgemm_t_8x8_sliced_k...dbuf | f32 | f32 | ⭐️⭐️⭐️ |
-|  | sgemm_t_8x8_sliced_k16...dbuf | f32 | f32 | ⭐️⭐️⭐️ |
-|  | sgemm_t_8x8_sliced_k16...async | f32 | f32 | ⭐️⭐️⭐️ |
-|  | sgemm_wmma_m16n16k8...stages* | tf32 | f32 | ⭐️⭐️⭐️ |
-|  | sgemm_wmma_m16n16k8...swizzle* | tf32 | f32 | ⭐️⭐️⭐️ |
-|  | hgemm_naive_f16 | f16 | f16 | ⭐️⭐️ |
-|  | hgemm_sliced_k_f16 | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_t_8x8_sliced_k_f16x4 | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_t_8x8_sliced_k_f16x4_pack | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_t_8x8_sliced_k_f16x8_pack | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_t_8x8_sliced_k...dbuf | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_t_8/16x8...k16/32...dbuf | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_t_8/16x8...k16/32...async | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_wmma_m16n16k16...naive* | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_wmma_m16n16k16...mma4x2* | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_wmma_m16n16k16...mma4x4* | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_wmma_m16n16k16...dbuf* | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_wmma_m32n8k16....dbuf* | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_wmma_m16n16k16...stages* | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_wmma_m16n16k16...swizzle* | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_mma_m16n8k16...naive* | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_mma_m16n8k16...mma2x4* | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_mma_m16n8k16...stages* | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_mma_m16n8k16...swizzle* | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_mma_m16n8k16...swizzle{smem}* | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_mma_m16n8k16...swizzle{tn}{smem}* | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_mma_stages_swizzle{smem}...cute* | f16 | f16 | ⭐️⭐️⭐️ |
-|  | hgemm_mma_cublas* | f16 | f16 | ⭐️⭐️ |
-
-
-<!-- 
-- 
-- 
-- 
-- 
--->
-
-
-### 📌 FlashAttention Variants
-
-| 完成情况 | CUDA 内核 | 元素数据类型 | 累加数据类型 | 难度 |
-|:---|:---|:---|:---|:---|
-|  | flash_attn_cute(naive) | f16 | f32 | ⭐️⭐️⭐️ |
-|  | How to implement MMA smem swizzle* | f16 | f16 | ⭐️⭐️⭐️ |
-|  | flash_attn_mma_stages_split_kv* | f16 | f16 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma_stages_split_q* | f16 | f16 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma_stages...shared_kv* | f16 | f16 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma_stages...shared_qkv* | f16 | f16 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma_stages...tiling_qk* | f16 | f16 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma_stages...tiling_qkv* | f16 | f16 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma_stages...shared_kv{f32}* | f16 | f32 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma_stages...shared_qkv{f32}* | f16 | f32 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma_stages...tiling_qk{f32}* | f16 | f32 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma_stages...tiling_qkv{f32}* | f16 | f32 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma...shared_kv{f32}{rr}* | f16 | f32 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma...shared_qkv{f32}{rr}* | f16 | f32 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma...shared_kv_swizzle{q}* | f16 | f16 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma...shared_kv_swizzle{qk}* | f16 | f16 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma...shared_kv_swizzle{qkv}* | f16 | f16 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma...shared_qkv_swizzle{q}* | f16 | f16 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma...shared_qkv_swizzle{qk}* | f16 | f16 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma...shared_qkv_swizzle{qkv}* | f16 | f16 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma...tiling_qk_swizzle{q}* | f16 | f16 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma...tiling_qk_swizzle{qk}* | f16 | f16 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma...tiling_qk_swizzle{qkv}* | f16 | f16 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma...tiling_qkv_swizzle{q}* | f16 | f16 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma...tiling_qkv_swizzle{qk}* | f16 | f16 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn_mma...tiling_qkv_swizzle{qkv}* | f16 | f16 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn...tiling_qkv_swizzle{q}{f32}* | f16 | f32 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn...tiling_qkv_swizzle{qk}{f32}* | f16 | f32 | ⭐️⭐️⭐️⭐️ |
-|  | flash_attn...tiling_qkv_swizzle{qkv}{f32}* | f16 | f32 | ⭐️⭐️⭐️⭐️ |
-
-<!-- 
-- 
-- 
-- 
-- 
--->
-
-
-
-💡NOTE: **rr**: means reduce registers usage (for `d>128`); **f32**: means MMA accumulate with FP32 dtype, otherwise, FP16. softmax Acc dtype is always be FP32 for high precision; **swizzle**: now, only support smem swizzle for MMA.
-
-- 📚 FFPA Attention MMA (**1.8x~3x**🎉faster vs SDPA EA, D > 256, FA2 not supported)
-
-|📖 CUDA Kernel| 📖 Elem DType| 📖 Acc DType| 📖 Docs | 📖 Level |
-|:---|:---|:---|:---|:---|
-| ✔️ [ffpa_mma_stages_split_q_L1_F16F16F16](https://github.com/xlite-dev/ffpa-attn/blob/main/csrc/cuffpa/ffpa_attn_F16F16F16_L1.cu)|f16|f16|[link](https://github.com/xlite-dev/ffpa-attn)|⭐️⭐️⭐️⭐️|
-| ✔️ [ffpa_mma_stages_split_q_L1_F16F16F32](https://github.com/xlite-dev/ffpa-attn/blob/main/csrc/cuffpa/ffpa_attn_F16F16F32_L1.cu)|f16|f32|[link](https://github.com/xlite-dev/ffpa-attn)|⭐️⭐️⭐️⭐️|
-| ✔️ [ffpa_mma_stages_split_q_L1_mixed_acc](https://github.com/xlite-dev/ffpa-attn/blob/main/csrc/cuffpa/ffpa_attn_F16F16F32_L1.cu)|f16|QK f32, PV f16|[link](https://github.com/xlite-dev/ffpa-attn)|⭐️⭐️⭐️⭐️|
-| ⚠️ [ffpa_mma_stages_split_q_L2_F16F16F16](https://github.com/xlite-dev/ffpa-attn/blob/main/csrc/cuffpa/ffpa_attn_F16F16F16_L2.cu)|f16|f16|[link](https://github.com/xlite-dev/ffpa-attn)|⭐️⭐️⭐️⭐️|
-| ⚠️ [ffpa_mma_stages_split_q_L2_F16F16F32](https://github.com/xlite-dev/ffpa-attn/blob/main/csrc/cuffpa/ffpa_attn_F16F16F32_L2.cu)|f16|f32|[link](https://github.com/xlite-dev/ffpa-attn)|⭐️⭐️⭐️⭐️|
-| ⚠️ [ffpa_mma_stages_split_q_L2_mixed_acc](https://github.com/xlite-dev/ffpa-attn/blob/main/csrc/cuffpa/ffpa_attn_F16F16F32_L2.cu)|f16|QK f32, PV f16|[link](https://github.com/xlite-dev/ffpa-attn)|⭐️⭐️⭐️⭐️|
-| ⚠️ [ffpa_mma_stages_split_q_L3_F16F16F16](https://github.com/xlite-dev/ffpa-attn/blob/main/csrc/cuffpa/ffpa_attn_F16F16F16_L3.cu)|f16|f16|[link](https://github.com/xlite-dev/ffpa-attn)|⭐️⭐️⭐️⭐️|
-| ⚠️ [ffpa_mma_stages_split_q_L3_F16F16F32](https://github.com/xlite-dev/ffpa-attn/blob/main/csrc/cuffpa/ffpa_attn_F16F16F32_L3.cu)|f16|f32|[link](https://github.com/xlite-dev/ffpa-attn)|⭐️⭐️⭐️⭐️|
-| ⚠️ [ffpa_mma_stages_split_q_L3_mixed_acc](https://github.com/xlite-dev/ffpa-attn/blob/main/csrc/cuffpa/ffpa_attn_F16F16F32_L3.cu)|f16|QK f32, PV f16|[link](https://github.com/xlite-dev/ffpa-attn)|⭐️⭐️⭐️⭐️|
-
-💡NOTE: 🤖[ffpa-attn](https://github.com/xlite-dev/ffpa-attn): 📚FFPA - Yet another Faster Flash Prefill Attention with O(1)🎉SRAM complexity for headdim > 256, **1.8x~3x**🎉faster than SDPA EA: [📈L20 ~1.9x↑🎉](https://github.com/xlite-dev/ffpa-attn?tab=readme-ov-file#L1-bench-l20), [📈 A30 ~1.8x↑🎉](https://github.com/xlite-dev/ffpa-attn?tab=readme-ov-file#L1-bench-a30), [📈3080 ~2.9x↑🎉](https://github.com/xlite-dev/ffpa-attn?tab=readme-ov-file#L1-bench-3080), [📈4090 ~2.1x↑🎉](https://github.com/xlite-dev/ffpa-attn?tab=readme-ov-file#L1-bench-4090).
-
-### 📚 Triton Kernel (OpenAI Triton) ⭐️⭐️⭐️ ([©️back👆🏻](#cuda-kernel))
-
-<div id="triton-kernel"></div>
-
-|📖 Triton Kernel| 📖 Elem DType| 📖 Acc DType| 📖 Docs | 📖 Level |
-|:---|:---|:---|:---|:---|
-| ✔️ [triton_vector_add_kernel](./kernels/openai-triton/vector-add/)|all|all|[link](./kernels/openai-triton/vector-add/)|⭐️⭐️|
-| ✔️ [triton_fused_softmax(multi-stages)](./kernels/openai-triton/fused-softmax/)|f16/bf16/f32|f32|[link](./kernels/openai-triton/fused-softmax/)|⭐️⭐️⭐️|
-| ✔️ [triton_fused_layer_norm(forward-pass)](./kernels/openai-triton/layer-norm/)|f16/bf16/f32|f32|[link](./kernels/openai-triton/layer-norm/)|⭐️⭐️⭐️|
-| ✔️ [triton_fused_layer_norm(backward-pass)](./kernels/openai-triton/layer-norm/)|f16/bf16/f32|f32|[link](./kernels/openai-triton/layer-norm/)|⭐️⭐️⭐️|
-| ✔️ [triton_merge_attn_states_kernel(w/ CUDA)](./kernels/openai-triton/merge-attn-states/)|f16/bf16/f32|f32|[link](./kernels/openai-triton/merge-attn-states/)|⭐️⭐️⭐️|
-
-### 📚 CUTLASS/CuTe Kernel ⭐️⭐️⭐️ ([©️back👆🏻](#cuda-kernel))
-
-<div id="cutlass-kernel"></div>
-
-|📖 CUTLASS/CuTe Kernel| 📖 Elem DType| 📖 Acc DType| 📖 Docs | 📖 Level |
-|:---|:---|:---|:---|:---|
-| ✔️ [mat_transpose_cute](./kernels/mat-transpose/mat_transpose_cute.cu)|f32|/|[link](./kernels/mat-transpose/)|⭐️⭐️|
-| ✔️ [flash_attn_cute(naive)](./kernels/flash-attn/cutlass/flash_attn_cute.cu)|f16|f32|[link](./kernels/flash-attn/)|⭐️⭐️⭐️|
-| ✔️ [hgemv_f16_cute_kernel](./kernels/hgemv/hgemv_cute.cu)|f16|f16|[link](./kernels/hgemv/)|⭐️⭐️⭐️|
-| ✔️ [hgemv_f16x8_cute_kernel](./kernels/hgemv/hgemv_cute.cu)|f16|f16|[link](./kernels/hgemv/)|⭐️⭐️⭐️|
-| ✔️ [hgemv_tensor_core_cute_kernel](./kernels/hgemv/hgemv_cute.cu)|f16|f16|[link](./kernels/hgemv/)|⭐️⭐️⭐️|
-| ✔️ [hgemm_mma_stages_swizzle{smem}...cute*](./kernels/hgemm/cutlass/hgemm_mma_stage_tn_cute.cu)|f16|f16|[link](./kernels/hgemm/)|⭐️⭐️⭐️|
-| ✔️ [ws_hgemm_naive_cute_kernel](./kernels/ws-hgemm/naive_ws_hgemm_sm8x.cu)|f16|f16|[link](./kernels/ws-hgemm/)|⭐️⭐️⭐️|
-
+参考了leet-cuda
 
 ## 📖 100+ 高性能计算与分布式-技术博客
+
+### 📚 高性能计算与分布式-技术博客推荐 ([©️back👆🏻](#contents))
+
+<div id="other-blogs"></div>
+
+💡说明: 本小节整理一些自己比较喜欢的文章。欢迎大家提PR推荐更多优秀的文章！
+
+|📖 类型-标题|📖 作者| 📖 推荐 |
+|:---|:---|:---|
+|[~~[cute系列详解][入门]📖cutlass cute 101~~](https://zhuanlan.zhihu.com/p/660379052)|@朱小霖|⭐️⭐️⭐️|
+|[~~[cute系列详解][入门]📖CUTLASS 2.x & CUTLASS 3.x Intro 学习笔记~~](https://zhuanlan.zhihu.com/p/710516489)|@BBuf|⭐️⭐️⭐️|
+|[~~[cute系列详解][Layout]📖cute 之 Layout~~](https://zhuanlan.zhihu.com/p/661182311)|@reed|⭐️⭐️⭐️|
+|[~~[cute系列详解][Layout]📖cute Layout 的代数和几何解释~~](https://zhuanlan.zhihu.com/p/662089556)|@reed|⭐️⭐️⭐️|
+|[~~[cute系列详解][Tensor]📖cute 之 Tensor~~](https://zhuanlan.zhihu.com/p/663093816)|@reed|⭐️⭐️⭐️|
+|[~~[cute系列详解][MMA]📖cute 之 MMA抽象~~](https://zhuanlan.zhihu.com/p/663092747)|@reed|⭐️⭐️⭐️|
+|[~~[cute系列详解][Copy]📖cute 之 Copy抽象~~](https://zhuanlan.zhihu.com/p/666232173)|@reed|⭐️⭐️⭐️|
+|[~~[cute系列详解][GEMM]📖cute 之 简单GEMM实现~~](https://zhuanlan.zhihu.com/p/667521327)|@reed|⭐️⭐️⭐️|
+| [~~[cute系列详解][GEMM]📖cute 之 GEMM流水线~~](https://zhuanlan.zhihu.com/p/665082713)|@reed|⭐️⭐️⭐️|
+| [~~[cute系列详解][GEMM]📖cute 之 高效GEMM实现~~](https://zhuanlan.zhihu.com/p/675308830)|@reed|⭐️⭐️⭐️|
+| [~~[cute系列详解][Swizzle]📖cute 之 Swizzle~~](https://zhuanlan.zhihu.com/p/671419093)|@reed|⭐️⭐️⭐️|
+| [[cute系列详解][Swizzle]📖cute Swizzle细谈](https://zhuanlan.zhihu.com/p/684250988)|@进击的Killua|⭐️⭐️⭐️|
+| [[cute系列详解][Swizzle]📖cutlass swizzle机制解析（一）](https://zhuanlan.zhihu.com/p/710337546)|@Titus|⭐️⭐️⭐️|
+| [[cute系列详解][Swizzle]📖cutlass swizzle机制解析（二）](https://zhuanlan.zhihu.com/p/711398930)|@Titus|⭐️⭐️⭐️|
+| [[cute系列详解][Swizzle]📖CUDA避免smem bank conflict的swizzle机制解析](https://zhuanlan.zhihu.com/p/4746910252)|@frankshi|⭐️⭐️⭐️|
+| [[cute系列详解][GEMM]📖GEMM流水线: single/multi-stage、pipeline](https://zhuanlan.zhihu.com/p/712451053)|@Titus|⭐️⭐️⭐️|
+| [[cute系列详解][GEMM]📖GEMM细节分析(一): ldmatrix的选择](https://zhuanlan.zhihu.com/p/702818267)|@Anonymous|⭐️⭐️⭐️|
+| [[cute系列详解][GEMM]📖GEMM细节分析(二): TiledCopy与cp.async](https://zhuanlan.zhihu.com/p/703560147)|@Anonymous|⭐️⭐️⭐️|
+| [[cute系列详解][GEMM]📖GEMM细节分析(三): Swizzle<B,M,S>参数取值](https://zhuanlan.zhihu.com/p/713713957)|@Anonymous|⭐️⭐️⭐️|
+| [[cute系列详解][实践]📖Hopper Mixed GEMM的CUTLASS实现笔记](https://zhuanlan.zhihu.com/p/714378343)|@BBuf|⭐️⭐️⭐️|
+| [~~[cute系列详解][实践]📖CUTLASS CuTe实战(一): 基础~~](https://zhuanlan.zhihu.com/p/690703999)|@进击的Killua|⭐️⭐️⭐️|
+| [~~[cute系列详解][实践]📖CUTLASS CuTe实战(二): 应用~~](https://zhuanlan.zhihu.com/p/692078624)|@进击的Killua|⭐️⭐️⭐️|
+| [~~[cute系列详解][实践]📖FlashAttention fp8实现（ada架构)~~](https://zhuanlan.zhihu.com/p/712314257)|@shengying.wei|⭐️⭐️⭐️|
+| [[cute系列详解][实践]📖FlashAttention 笔记: tiny-flash-attention解读](https://zhuanlan.zhihu.com/p/708867810)|@shengying.wei|⭐️⭐️⭐️|
+| [[cute系列详解][实践]📖使用cutlass cute复现flash attention](https://zhuanlan.zhihu.com/p/696323042)|@66RING|⭐️⭐️⭐️|
+| [~~[cutlass教程][入门]📖cutlass 基本认知~~](https://zhuanlan.zhihu.com/p/677616101)|@JoeNomad|⭐️⭐️⭐️|
+| [~~[cutlass教程][入门]📖cutlass 软件架构~~](https://zhuanlan.zhihu.com/p/678915618)|@JoeNomad|⭐️⭐️⭐️|
+| [~~[cutlass教程][入门]📖CUTLASS 基础介绍~~](https://zhuanlan.zhihu.com/p/671324125)|@进击的Killua|⭐️⭐️⭐️|
+| [~~[cutlass教程][入门]📖乱谈CUTLASS GTC2020 SLIDES~~](https://zhuanlan.zhihu.com/p/674693873)|@zzk again|⭐️⭐️⭐️|
+| [[cutlass教程][深入]📖cutlass block swizzle 和 tile iterator](https://zhuanlan.zhihu.com/p/679929705)|@JoeNomad|⭐️⭐️⭐️|
+| [[cutlass教程][深入]📖cutlass bank conflict free的smem layout](https://zhuanlan.zhihu.com/p/681966685)|@JoeNomad|⭐️⭐️⭐️|
+| [[cutlass教程][深入]📖cutlass 多级流水线](https://zhuanlan.zhihu.com/p/687397095)|@JoeNomad|⭐️⭐️⭐️|
+| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-前言](https://zhuanlan.zhihu.com/p/686198447)|@reed|⭐️⭐️⭐️|
+| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-寄存器](https://zhuanlan.zhihu.com/p/688616037)|@reed|⭐️⭐️⭐️|
+| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-Load和Cache](https://zhuanlan.zhihu.com/p/692445145)|@reed|⭐️⭐️⭐️|
+| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-浮点运算](https://zhuanlan.zhihu.com/p/695667044)|@reed|⭐️⭐️⭐️|
+| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-整数运算](https://zhuanlan.zhihu.com/p/700921948)|@reed|⭐️⭐️⭐️|
+| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-比特和逻辑操作](https://zhuanlan.zhihu.com/p/712356884)|@reed|⭐️⭐️⭐️|
+| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-Warp级和Uniform操作](https://zhuanlan.zhihu.com/p/712357647)|@reed|⭐️⭐️⭐️|
+| [[CUDA优化][入门]📖CUDA 入门的正确姿势：how-to-optimize-gemm](https://zhuanlan.zhihu.com/p/478846788)|@白牛|⭐️⭐️⭐️|
+| [~~[CUDA优化][入门]📖CUDA（一）：CUDA 编程基础~~](https://zhuanlan.zhihu.com/p/645330027)|@紫气东来|⭐️⭐️⭐️|
+| [~~[CUDA优化][入门]📖CUDA（二）：GPU的内存体系及其优化指南~~](https://zhuanlan.zhihu.com/p/654027980)|@紫气东来|⭐️⭐️⭐️|
+| [[CUDA优化][实践]📖CUDA（三）：通用矩阵乘法：从入门到熟练](https://zhuanlan.zhihu.com/p/657632577)|@紫气东来|⭐️⭐️⭐️|
+| [[CUDA优化][实践]📖ops(1)：LayerNorm 算子的 CUDA 实现与优化](https://zhuanlan.zhihu.com/p/694974164)|@紫气东来|⭐️⭐️⭐️|
+| [[CUDA优化][实践]📖ops(2)：SoftMax算子的 CUDA 实现](https://zhuanlan.zhihu.com/p/695307283)|@紫气东来|⭐️⭐️⭐️|
+| [[CUDA优化][实践]📖ops(3)：Cross Entropy 的 CUDA 实现](https://zhuanlan.zhihu.com/p/695594396)|@紫气东来|⭐️⭐️⭐️|
+| [[CUDA优化][实践]📖ops(4)：AdamW 优化器的 CUDA 实现](https://zhuanlan.zhihu.com/p/695611950)|@紫气东来|⭐️⭐️⭐️|
+| [[CUDA优化][实践]📖ops(5)：激活函数与残差连接的 CUDA 实现](https://zhuanlan.zhihu.com/p/695703671)|@紫气东来|⭐️⭐️⭐️|
+| [[CUDA优化][实践]📖ops(6)：embedding 层与 LM head 层的 CUDA 实现](https://zhuanlan.zhihu.com/p/695785781)|@紫气东来|⭐️⭐️⭐️|
+| [[CUDA优化][实践]📖ops(7)：self-attention 的 CUDA 实现及优化 (上)](https://zhuanlan.zhihu.com/p/695898274)|@紫气东来|⭐️⭐️⭐️|
+| [[CUDA优化][实践]📖ops(8)：self-attention 的 CUDA 实现及优化 (下)](https://zhuanlan.zhihu.com/p/696197013)|@紫气东来|⭐️⭐️⭐️|
+| [[CUDA优化][实践]📖CUDA（四）：使用 CUDA 实现 Transformer 结构](https://zhuanlan.zhihu.com/p/694416583)|@紫气东来|⭐️⭐️⭐️|
+| [[CUDA优化][Copy]📖Async Copy及Memory Barrier指令的功能与实现](https://zhuanlan.zhihu.com/p/685168850)|@Frank Wang|⭐️⭐️⭐️|
+| [[CUDA优化][GEMV]📖深入浅出GPU优化系列：gemv优化](https://zhuanlan.zhihu.com/p/494144694)|@有了琦琦的棍子|⭐️⭐️⭐️|
+| [~~[CUDA优化][实践]📖CUDA element-wise 算子详解~~](https://zhuanlan.zhihu.com/p/1888630735520391519)|@懒蚂蚁呀不嘿|⭐️⭐️⭐️|
+| [~~[CUDA优化][实践]📖CUDA transpose 算子详解~~](https://zhuanlan.zhihu.com/p/1899760505733756129)|@懒蚂蚁呀不嘿|⭐️⭐️⭐️|
+| [~~[CUDA优化][实践]📖CUDA reduce 算子详解~~](https://zhuanlan.zhihu.com/p/1905661893739283464)|@懒蚂蚁呀不嘿|⭐️⭐️⭐️|
+| [~~[CUDA优化][实践]📖CUDA GEMM 算子详解~~](https://zhuanlan.zhihu.com/p/1910636263666610461)|@懒蚂蚁呀不嘿|⭐️⭐️⭐️|
+| [[Tensor Cores]📖Nvidia Tensor Core初探](https://zhuanlan.zhihu.com/p/620185229)|@木子知|⭐️⭐️⭐️|
+| [[Tensor Cores]📖Nvidia Tensor Core-WMMA API编程入门](https://zhuanlan.zhihu.com/p/620766588)|@木子知|⭐️⭐️⭐️|
+| [[Tensor Cores]📖Nvidia Tensor Core-MMA PTX编程入门](https://zhuanlan.zhihu.com/p/621855199)|@木子知|⭐️⭐️⭐️|
+| [[Tensor Cores]📖CUDA Ampere Tensor Core HGEMM 矩阵乘法优化](https://zhuanlan.zhihu.com/p/555339335)|@nicholaswilde|⭐️⭐️⭐️|
+| [[GPU通信架构][精解]📖NVIDIA GPGPU（四）- 通信架构](https://zhuanlan.zhihu.com/p/680262016)|@Bruce|⭐️⭐️⭐️|
+| [[torch.compile][原理]📖Torch.compile流程解析: 介绍](https://zhuanlan.zhihu.com/p/9418379234)|@StarCap|⭐️⭐️⭐️|
+| [[torch.compile][原理]📖Torch.compile流程解析: TorchDynamo](https://zhuanlan.zhihu.com/p/9640728231)|@StarCap|⭐️⭐️⭐️|
+| [[torch.compile][原理]📖Torch.compile流程解析: AOTAutograd](https://zhuanlan.zhihu.com/p/9997263922)|@StarCap|⭐️⭐️⭐️|
+| [[torch.compile][原理]📖Torch.compile流程解析: TorchInductor](https://zhuanlan.zhihu.com/p/11224299472)|@StarCap|⭐️⭐️⭐️|
+| [[torch.compile][原理]📖Torch.compile流程解析: 算子融合](https://zhuanlan.zhihu.com/p/21053905491)|@StarCap|⭐️⭐️⭐️|
+| [[torch.compile][实践]📖Torch.compile使用指南](https://zhuanlan.zhihu.com/p/620163218)|@jhang|⭐️⭐️⭐️|
+| [[torch.compile][实践]📖Torch.compile详细示例解析教程](https://zhuanlan.zhihu.com/p/855291863)|@Bbuf|⭐️⭐️⭐️|
+| [[torch.compile][原理]📖一文搞懂TorchDynamo原理](https://zhuanlan.zhihu.com/p/630933479)|@吾乃阿尔法|⭐️⭐️⭐️|
+| [[torch.compile][原理]📖理解torch.compile基本原理和使用方式](https://zhuanlan.zhihu.com/p/12712224407)|@俯仰|⭐️⭐️⭐️|
+
 
 <div id="my-blogs-part-1"></div>
 
@@ -557,120 +174,4 @@ shared_memory+warp_shuffle,每个thread负责一个元素
 | [[技术随笔][3D]📖从源码安装Pytorch3D详细记录及学习资料](https://zhuanlan.zhihu.com/p/512347464)|@DefTruth|⭐️|
 | [[技术随笔][ML]📖200页:《统计学习方法：李航》笔记 -从原理到实现](https://zhuanlan.zhihu.com/p/461520847)|@DefTruth|⭐️⭐️|
 
-### 📚 高性能计算与分布式-技术博客推荐 ([©️back👆🏻](#contents))
 
-<div id="other-blogs"></div>
-
-💡说明: 本小节整理一些自己比较喜欢的文章。欢迎大家提PR推荐更多优秀的文章！
-
-|📖 类型-标题|📖 作者| 📖 推荐 |
-|:---|:---|:---|
-|[~~[cute系列详解][入门]📖cutlass cute 101~~](https://zhuanlan.zhihu.com/p/660379052)|@朱小霖|⭐️⭐️⭐️|
-|[~~[cute系列详解][入门]📖CUTLASS 2.x & CUTLASS 3.x Intro 学习笔记~~](https://zhuanlan.zhihu.com/p/710516489)|@BBuf|⭐️⭐️⭐️|
-|[~~[cute系列详解][Layout]📖cute 之 Layout~~](https://zhuanlan.zhihu.com/p/661182311)|@reed|⭐️⭐️⭐️|
-|[~~[cute系列详解][Layout]📖cute Layout 的代数和几何解释~~](https://zhuanlan.zhihu.com/p/662089556)|@reed|⭐️⭐️⭐️|
-|[~~[cute系列详解][Tensor]📖cute 之 Tensor~~](https://zhuanlan.zhihu.com/p/663093816)|@reed|⭐️⭐️⭐️|
-|[~~[cute系列详解][MMA]📖cute 之 MMA抽象~~](https://zhuanlan.zhihu.com/p/663092747)|@reed|⭐️⭐️⭐️|
-|[~~[cute系列详解][Copy]📖cute 之 Copy抽象~~](https://zhuanlan.zhihu.com/p/666232173)|@reed|⭐️⭐️⭐️|
-|[~~[cute系列详解][GEMM]📖cute 之 简单GEMM实现~~](https://zhuanlan.zhihu.com/p/667521327)|@reed|⭐️⭐️⭐️|
-| [~~[cute系列详解][GEMM]📖cute 之 GEMM流水线~~](https://zhuanlan.zhihu.com/p/665082713)|@reed|⭐️⭐️⭐️|
-| [~~[cute系列详解][GEMM]📖cute 之 高效GEMM实现~~](https://zhuanlan.zhihu.com/p/675308830)|@reed|⭐️⭐️⭐️|
-| [~~[cute系列详解][Swizzle]📖cute 之 Swizzle~~](https://zhuanlan.zhihu.com/p/671419093)|@reed|⭐️⭐️⭐️|
-| [[cute系列详解][Swizzle]📖cute Swizzle细谈](https://zhuanlan.zhihu.com/p/684250988)|@进击的Killua|⭐️⭐️⭐️|
-| [[cute系列详解][Swizzle]📖cutlass swizzle机制解析（一）](https://zhuanlan.zhihu.com/p/710337546)|@Titus|⭐️⭐️⭐️|
-| [[cute系列详解][Swizzle]📖cutlass swizzle机制解析（二）](https://zhuanlan.zhihu.com/p/711398930)|@Titus|⭐️⭐️⭐️|
-| [[cute系列详解][Swizzle]📖CUDA避免smem bank conflict的swizzle机制解析](https://zhuanlan.zhihu.com/p/4746910252)|@frankshi|⭐️⭐️⭐️|
-| [[cute系列详解][GEMM]📖GEMM流水线: single/multi-stage、pipeline](https://zhuanlan.zhihu.com/p/712451053)|@Titus|⭐️⭐️⭐️|
-| [[cute系列详解][GEMM]📖GEMM细节分析(一): ldmatrix的选择](https://zhuanlan.zhihu.com/p/702818267)|@Anonymous|⭐️⭐️⭐️|
-| [[cute系列详解][GEMM]📖GEMM细节分析(二): TiledCopy与cp.async](https://zhuanlan.zhihu.com/p/703560147)|@Anonymous|⭐️⭐️⭐️|
-| [[cute系列详解][GEMM]📖GEMM细节分析(三): Swizzle<B,M,S>参数取值](https://zhuanlan.zhihu.com/p/713713957)|@Anonymous|⭐️⭐️⭐️|
-| [[cute系列详解][实践]📖Hopper Mixed GEMM的CUTLASS实现笔记](https://zhuanlan.zhihu.com/p/714378343)|@BBuf|⭐️⭐️⭐️|
-| [~~[cute系列详解][实践]📖CUTLASS CuTe实战(一): 基础~~](https://zhuanlan.zhihu.com/p/690703999)|@进击的Killua|⭐️⭐️⭐️|
-| [~~[cute系列详解][实践]📖CUTLASS CuTe实战(二): 应用~~](https://zhuanlan.zhihu.com/p/692078624)|@进击的Killua|⭐️⭐️⭐️|
-| [[cute系列详解][实践]📖FlashAttention fp8实现（ada架构)](https://zhuanlan.zhihu.com/p/712314257)|@shengying.wei|⭐️⭐️⭐️|
-| [[cute系列详解][实践]📖FlashAttention 笔记: tiny-flash-attention解读](https://zhuanlan.zhihu.com/p/708867810)|@shengying.wei|⭐️⭐️⭐️|
-| [[cute系列详解][实践]📖使用cutlass cute复现flash attention](https://zhuanlan.zhihu.com/p/696323042)|@66RING|⭐️⭐️⭐️|
-| [[cutlass教程][入门]📖cutlass 基本认知](https://zhuanlan.zhihu.com/p/677616101)|@JoeNomad|⭐️⭐️⭐️|
-| [[cutlass教程][入门]📖cutlass 软件架构](https://zhuanlan.zhihu.com/p/678915618)|@JoeNomad|⭐️⭐️⭐️|
-| [[cutlass教程][入门]📖CUTLASS 基础介绍](https://zhuanlan.zhihu.com/p/671324125)|@进击的Killua|⭐️⭐️⭐️|
-| [[cutlass教程][入门]📖乱谈CUTLASS GTC2020 SLIDES](https://zhuanlan.zhihu.com/p/674693873)|@zzk again|⭐️⭐️⭐️|
-| [[cutlass教程][深入]📖cutlass block swizzle 和 tile iterator](https://zhuanlan.zhihu.com/p/679929705)|@JoeNomad|⭐️⭐️⭐️|
-| [[cutlass教程][深入]📖cutlass bank conflict free的smem layout](https://zhuanlan.zhihu.com/p/681966685)|@JoeNomad|⭐️⭐️⭐️|
-| [[cutlass教程][深入]📖cutlass 多级流水线](https://zhuanlan.zhihu.com/p/687397095)|@JoeNomad|⭐️⭐️⭐️|
-| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-前言](https://zhuanlan.zhihu.com/p/686198447)|@reed|⭐️⭐️⭐️|
-| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-寄存器](https://zhuanlan.zhihu.com/p/688616037)|@reed|⭐️⭐️⭐️|
-| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-Load和Cache](https://zhuanlan.zhihu.com/p/692445145)|@reed|⭐️⭐️⭐️|
-| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-浮点运算](https://zhuanlan.zhihu.com/p/695667044)|@reed|⭐️⭐️⭐️|
-| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-整数运算](https://zhuanlan.zhihu.com/p/700921948)|@reed|⭐️⭐️⭐️|
-| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-比特和逻辑操作](https://zhuanlan.zhihu.com/p/712356884)|@reed|⭐️⭐️⭐️|
-| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-Warp级和Uniform操作](https://zhuanlan.zhihu.com/p/712357647)|@reed|⭐️⭐️⭐️|
-| [[CUDA优化][入门]📖CUDA 入门的正确姿势：how-to-optimize-gemm](https://zhuanlan.zhihu.com/p/478846788)|@白牛|⭐️⭐️⭐️|
-| [[CUDA优化][入门]📖CUDA（一）：CUDA 编程基础](https://zhuanlan.zhihu.com/p/645330027)|@紫气东来|⭐️⭐️⭐️|
-| [[CUDA优化][入门]📖CUDA（二）：GPU的内存体系及其优化指南](https://zhuanlan.zhihu.com/p/654027980)|@紫气东来|⭐️⭐️⭐️|
-| [[CUDA优化][实践]📖CUDA（三）：通用矩阵乘法：从入门到熟练](https://zhuanlan.zhihu.com/p/657632577)|@紫气东来|⭐️⭐️⭐️|
-| [[CUDA优化][实践]📖ops(1)：LayerNorm 算子的 CUDA 实现与优化](https://zhuanlan.zhihu.com/p/694974164)|@紫气东来|⭐️⭐️⭐️|
-| [[CUDA优化][实践]📖ops(2)：SoftMax算子的 CUDA 实现](https://zhuanlan.zhihu.com/p/695307283)|@紫气东来|⭐️⭐️⭐️|
-| [[CUDA优化][实践]📖ops(3)：Cross Entropy 的 CUDA 实现](https://zhuanlan.zhihu.com/p/695594396)|@紫气东来|⭐️⭐️⭐️|
-| [[CUDA优化][实践]📖ops(4)：AdamW 优化器的 CUDA 实现](https://zhuanlan.zhihu.com/p/695611950)|@紫气东来|⭐️⭐️⭐️|
-| [[CUDA优化][实践]📖ops(5)：激活函数与残差连接的 CUDA 实现](https://zhuanlan.zhihu.com/p/695703671)|@紫气东来|⭐️⭐️⭐️|
-| [[CUDA优化][实践]📖ops(6)：embedding 层与 LM head 层的 CUDA 实现](https://zhuanlan.zhihu.com/p/695785781)|@紫气东来|⭐️⭐️⭐️|
-| [[CUDA优化][实践]📖ops(7)：self-attention 的 CUDA 实现及优化 (上)](https://zhuanlan.zhihu.com/p/695898274)|@紫气东来|⭐️⭐️⭐️|
-| [[CUDA优化][实践]📖ops(8)：self-attention 的 CUDA 实现及优化 (下)](https://zhuanlan.zhihu.com/p/696197013)|@紫气东来|⭐️⭐️⭐️|
-| [[CUDA优化][实践]📖CUDA（四）：使用 CUDA 实现 Transformer 结构](https://zhuanlan.zhihu.com/p/694416583)|@紫气东来|⭐️⭐️⭐️|
-| [[CUDA优化][Copy]📖Async Copy及Memory Barrier指令的功能与实现](https://zhuanlan.zhihu.com/p/685168850)|@Frank Wang|⭐️⭐️⭐️|
-| [[CUDA优化][GEMV]📖深入浅出GPU优化系列：gemv优化](https://zhuanlan.zhihu.com/p/494144694)|@有了琦琦的棍子|⭐️⭐️⭐️|
-| [[CUDA优化][实践]📖CUDA element-wise 算子详解](https://zhuanlan.zhihu.com/p/1888630735520391519)|@懒蚂蚁呀不嘿|⭐️⭐️⭐️|
-| [[CUDA优化][实践]📖CUDA transpose 算子详解](https://zhuanlan.zhihu.com/p/1899760505733756129)|@懒蚂蚁呀不嘿|⭐️⭐️⭐️|
-| [[CUDA优化][实践]📖CUDA reduce 算子详解](https://zhuanlan.zhihu.com/p/1905661893739283464)|@懒蚂蚁呀不嘿|⭐️⭐️⭐️|
-| [[CUDA优化][实践]📖CUDA GEMM 算子详解](https://zhuanlan.zhihu.com/p/1910636263666610461)|@懒蚂蚁呀不嘿|⭐️⭐️⭐️|
-| [[Tensor Cores]📖Nvidia Tensor Core初探](https://zhuanlan.zhihu.com/p/620185229)|@木子知|⭐️⭐️⭐️|
-| [[Tensor Cores]📖Nvidia Tensor Core-WMMA API编程入门](https://zhuanlan.zhihu.com/p/620766588)|@木子知|⭐️⭐️⭐️|
-| [[Tensor Cores]📖Nvidia Tensor Core-MMA PTX编程入门](https://zhuanlan.zhihu.com/p/621855199)|@木子知|⭐️⭐️⭐️|
-| [[Tensor Cores]📖CUDA Ampere Tensor Core HGEMM 矩阵乘法优化](https://zhuanlan.zhihu.com/p/555339335)|@nicholaswilde|⭐️⭐️⭐️|
-| [[GPU通信架构][精解]📖NVIDIA GPGPU（四）- 通信架构](https://zhuanlan.zhihu.com/p/680262016)|@Bruce|⭐️⭐️⭐️|
-| [[torch.compile][原理]📖Torch.compile流程解析: 介绍](https://zhuanlan.zhihu.com/p/9418379234)|@StarCap|⭐️⭐️⭐️|
-| [[torch.compile][原理]📖Torch.compile流程解析: TorchDynamo](https://zhuanlan.zhihu.com/p/9640728231)|@StarCap|⭐️⭐️⭐️|
-| [[torch.compile][原理]📖Torch.compile流程解析: AOTAutograd](https://zhuanlan.zhihu.com/p/9997263922)|@StarCap|⭐️⭐️⭐️|
-| [[torch.compile][原理]📖Torch.compile流程解析: TorchInductor](https://zhuanlan.zhihu.com/p/11224299472)|@StarCap|⭐️⭐️⭐️|
-| [[torch.compile][原理]📖Torch.compile流程解析: 算子融合](https://zhuanlan.zhihu.com/p/21053905491)|@StarCap|⭐️⭐️⭐️|
-| [[torch.compile][实践]📖Torch.compile使用指南](https://zhuanlan.zhihu.com/p/620163218)|@jhang|⭐️⭐️⭐️|
-| [[torch.compile][实践]📖Torch.compile详细示例解析教程](https://zhuanlan.zhihu.com/p/855291863)|@Bbuf|⭐️⭐️⭐️|
-| [[torch.compile][原理]📖一文搞懂TorchDynamo原理](https://zhuanlan.zhihu.com/p/630933479)|@吾乃阿尔法|⭐️⭐️⭐️|
-| [[torch.compile][原理]📖理解torch.compile基本原理和使用方式](https://zhuanlan.zhihu.com/p/12712224407)|@俯仰|⭐️⭐️⭐️|
-
-## ©️License ([©️back👆🏻](#contents))
-
-<div id="License"></div>
-
-GNU General Public License v3.0
-
-## 🎉Contribute ([©️back👆🏻](#contents))
-
-<div id="contribute"></div>
-
-How to contribute? Star this repo or check [🌤🌤CONTRIBUTE🎉🎉](./CONTRIBUTE.md).
-
-<div align='center'>
-<a href="https://star-history.com/#xlite-dev/LeetCUDA&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=xlite-dev/LeetCUDA&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=xlite-dev/LeetCUDA&type=Date" />
-   <img width=400 height=300 alt="Star History Chart" src="https://api.star-history.com/svg?repos=xlite-dev/LeetCUDA&type=Date" />
- </picture>
-</a>
-</div>
-
-## 📖 References ([©️back👆🏻](#contents))
-<div id="ref"></div>
-
-- [flash-attention-minimal](https://github.com/tspeterkim/flash-attention-minimal)
-- [tiny-flash-attention](https://github.com/66RING/tiny-flash-attention)
-- [cute-gemm](https://github.com/reed-lau/cute-gemm)
-- [cutlass_flash_atten_fp8](https://github.com/weishengying/cutlass_flash_atten_fp8)
-- [cuda_learning](https://github.com/ifromeast/cuda_learning)
-- [cuda_hgemm](https://github.com/Bruce-Lee-LY/cuda_hgemm)
-- [cuda-tensorcore-hgemm](https://github.com/nicolaswilde/cuda-tensorcore-hgemm)
-- [How_to_optimize_in_GPU](https://github.com/Liu-xiandong/How_to_optimize_in_GPU/tree/master/sgemv)
-- [how-to-optim-algorithm-in-cuda](https://github.com/BBuf/how-to-optim-algorithm-in-cuda)
-- [cute_gemm](https://github.com/weishengying/cute_gemm)
-- [cutlass](https://github.com/NVIDIA/cutlass)
