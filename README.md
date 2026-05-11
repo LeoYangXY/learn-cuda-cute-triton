@@ -42,7 +42,7 @@
 | [[cutlass教程][深入]📖cutlass block swizzle 和 tile iterator](https://zhuanlan.zhihu.com/p/679929705)|@JoeNomad|⭐️⭐️⭐️|
 | [[cutlass教程][深入]📖cutlass bank conflict free的smem layout](https://zhuanlan.zhihu.com/p/681966685)|@JoeNomad|⭐️⭐️⭐️|
 | [[cutlass教程][深入]📖cutlass 多级流水线](https://zhuanlan.zhihu.com/p/687397095)|@JoeNomad|⭐️⭐️⭐️|
-| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-前言](https://zhuanlan.zhihu.com/p/686198447)|@reed|⭐️⭐️⭐️|
+| [~~[GPU指令集架构][精解]📖NVidia GPU指令集架构-前言~~](https://zhuanlan.zhihu.com/p/686198447)|@reed|⭐️⭐️⭐️|
 | [[GPU指令集架构][精解]📖NVidia GPU指令集架构-寄存器](https://zhuanlan.zhihu.com/p/688616037)|@reed|⭐️⭐️⭐️|
 | [[GPU指令集架构][精解]📖NVidia GPU指令集架构-Load和Cache](https://zhuanlan.zhihu.com/p/692445145)|@reed|⭐️⭐️⭐️|
 | [[GPU指令集架构][精解]📖NVidia GPU指令集架构-浮点运算](https://zhuanlan.zhihu.com/p/695667044)|@reed|⭐️⭐️⭐️|

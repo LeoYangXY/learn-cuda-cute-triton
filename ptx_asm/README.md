@@ -6,13 +6,14 @@
 
 ```
 ptx_asm/
-├── 01_basics/          — PTX 基础: 寄存器约束、内存修饰符、barrier
-├── 02_cp_async/        — cp.async 异步数据搬运 (GMEM → SMEM)
-├── 03_ldmatrix/        — ldmatrix 指令 (SMEM → Register, Tensor Core 专用布局)
-├── 04_mma/             — mma.sync Tensor Core MMA (m16n8k16)
-├── 05_wgmma/           — wgmma (Hopper sm_90 异步 warp-group MMA)
-├── 06_tma/             — TMA (Tensor Memory Accelerator, Hopper)
-├── 07_hgemm_mma/       — 完整 HGEMM: cp.async + ldmatrix + mma pipeline
+├── 01_basics/              — PTX 基础: 特殊寄存器、向量化访存、barrier、atomic、shuffle
+├── 02_cp_async/            — cp.async 异步数据搬运 (GMEM → SMEM, double buffering)
+├── 03_ldmatrix/            — ldmatrix 指令 (SMEM → Register, Tensor Core 专用布局)
+├── 04_mma/                 — mma.sync Tensor Core MMA (m16n8k16, f16/f32 accumulator)
+├── 05_hgemm_mma/           — 完整 HGEMM: cp.async + ldmatrix + mma pipeline
+├── 06_hopper_wgmma_tma/    — Hopper sm_90: wgmma, TMA, setmaxnreg, mbarrier, cluster
+├── 07_type_convert/        — 数据类型转换: FP32↔FP16↔BF16↔FP8, 舍入模式
+├── 08_memory_control/      — 访存控制: cache 修饰符, prefetch, red, selp, fma
 └── README.md
 ```
 

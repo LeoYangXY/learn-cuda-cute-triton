@@ -1,0 +1,20 @@
+# Compiled executables (no extension on Linux)
+ptx_asm/01_basics/ptx_basics
+ptx_asm/02_cp_async/cp_async
+ptx_asm/03_ldmatrix/ldmatrix
+ptx_asm/04_mma/mma
+ptx_asm/05_hgemm_mma/hgemm
+ptx_asm/06_hopper_wgmma_tma/hopper
+ptx_asm/07_type_convert/type_convert
+ptx_asm/08_memory_control/memctrl
+
+# Build artifacts
+*.o
+*.so
+*.a
+*.cubin
+*.fatbin
+*.ptx
+build/
+__pycache__/
+*.egg-info/
