@@ -63,15 +63,15 @@
 | [[CUDA优化][实践]📖ops(8)：self-attention 的 CUDA 实现及优化 (下)](https://zhuanlan.zhihu.com/p/696197013)|@紫气东来|⭐️⭐️⭐️|
 | [[CUDA优化][实践]📖CUDA（四）：使用 CUDA 实现 Transformer 结构](https://zhuanlan.zhihu.com/p/694416583)|@紫气东来|⭐️⭐️⭐️|
 | [[CUDA优化][Copy]📖Async Copy及Memory Barrier指令的功能与实现](https://zhuanlan.zhihu.com/p/685168850)|@Frank Wang|⭐️⭐️⭐️|
-| [[CUDA优化][GEMV]📖深入浅出GPU优化系列：gemv优化](https://zhuanlan.zhihu.com/p/494144694)|@有了琦琦的棍子|⭐️⭐️⭐️|
+| [~~[CUDA优化][GEMV]📖深入浅出GPU优化系列：gemv优化~~](https://zhuanlan.zhihu.com/p/494144694)|@有了琦琦的棍子|⭐️⭐️⭐️|
 | [~~[CUDA优化][实践]📖CUDA element-wise 算子详解~~](https://zhuanlan.zhihu.com/p/1888630735520391519)|@懒蚂蚁呀不嘿|⭐️⭐️⭐️|
 | [~~[CUDA优化][实践]📖CUDA transpose 算子详解~~](https://zhuanlan.zhihu.com/p/1899760505733756129)|@懒蚂蚁呀不嘿|⭐️⭐️⭐️|
 | [~~[CUDA优化][实践]📖CUDA reduce 算子详解~~](https://zhuanlan.zhihu.com/p/1905661893739283464)|@懒蚂蚁呀不嘿|⭐️⭐️⭐️|
 | [~~[CUDA优化][实践]📖CUDA GEMM 算子详解~~](https://zhuanlan.zhihu.com/p/1910636263666610461)|@懒蚂蚁呀不嘿|⭐️⭐️⭐️|
-| [[Tensor Cores]📖Nvidia Tensor Core初探](https://zhuanlan.zhihu.com/p/620185229)|@木子知|⭐️⭐️⭐️|
-| [[Tensor Cores]📖Nvidia Tensor Core-WMMA API编程入门](https://zhuanlan.zhihu.com/p/620766588)|@木子知|⭐️⭐️⭐️|
-| [[Tensor Cores]📖Nvidia Tensor Core-MMA PTX编程入门](https://zhuanlan.zhihu.com/p/621855199)|@木子知|⭐️⭐️⭐️|
-| [[Tensor Cores]📖CUDA Ampere Tensor Core HGEMM 矩阵乘法优化](https://zhuanlan.zhihu.com/p/555339335)|@nicholaswilde|⭐️⭐️⭐️|
+| [~~[Tensor Cores]📖Nvidia Tensor Core初探~~](https://zhuanlan.zhihu.com/p/620185229)|@木子知|⭐️⭐️⭐️|
+| [~~[Tensor Cores]📖Nvidia Tensor Core-WMMA API编程入门~~](https://zhuanlan.zhihu.com/p/620766588)|@木子知|⭐️⭐️⭐️|
+| [~~[Tensor Cores]📖Nvidia Tensor Core-MMA PTX编程入门~~](https://zhuanlan.zhihu.com/p/621855199)|@木子知|⭐️⭐️⭐️|
+| [~~[Tensor Cores]📖CUDA Ampere Tensor Core HGEMM 矩阵乘法优化~~](https://zhuanlan.zhihu.com/p/555339335)|@nicholaswilde|⭐️⭐️⭐️|
 | [[GPU通信架构][精解]📖NVIDIA GPGPU（四）- 通信架构](https://zhuanlan.zhihu.com/p/680262016)|@Bruce|⭐️⭐️⭐️|
 | [[torch.compile][原理]📖Torch.compile流程解析: 介绍](https://zhuanlan.zhihu.com/p/9418379234)|@StarCap|⭐️⭐️⭐️|
 | [[torch.compile][原理]📖Torch.compile流程解析: TorchDynamo](https://zhuanlan.zhihu.com/p/9640728231)|@StarCap|⭐️⭐️⭐️|
