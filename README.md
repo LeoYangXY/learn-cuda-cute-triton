@@ -46,9 +46,9 @@
 | [~~[GPU指令集架构][精解]📖NVidia GPU指令集架构-寄存器~~](https://zhuanlan.zhihu.com/p/688616037)|@reed|⭐️⭐️⭐️|
 | [~~[GPU指令集架构][精解]📖NVidia GPU指令集架构-Load和Cache~~](https://zhuanlan.zhihu.com/p/692445145)|@reed|⭐️⭐️⭐️|
 | [~~[GPU指令集架构][精解]📖NVidia GPU指令集架构-浮点运算~~](https://zhuanlan.zhihu.com/p/695667044)|@reed|⭐️⭐️⭐️|
-| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-整数运算](https://zhuanlan.zhihu.com/p/700921948)|@reed|⭐️⭐️⭐️|
-| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-比特和逻辑操作](https://zhuanlan.zhihu.com/p/712356884)|@reed|⭐️⭐️⭐️|
-| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-Warp级和Uniform操作](https://zhuanlan.zhihu.com/p/712357647)|@reed|⭐️⭐️⭐️|
+| [~~[GPU指令集架构][精解]📖NVidia GPU指令集架构-整数运算~~](https://zhuanlan.zhihu.com/p/700921948)|@reed|⭐️⭐️⭐️|
+| [~~[GPU指令集架构][精解]📖NVidia GPU指令集架构-比特和逻辑操作~~](https://zhuanlan.zhihu.com/p/712356884)|@reed|⭐️⭐️⭐️|
+| [~~[GPU指令集架构][精解]📖NVidia GPU指令集架构-Warp级和Uniform操作~~](https://zhuanlan.zhihu.com/p/712357647)|@reed|⭐️⭐️⭐️|
 | [[CUDA优化][入门]📖CUDA 入门的正确姿势：how-to-optimize-gemm](https://zhuanlan.zhihu.com/p/478846788)|@白牛|⭐️⭐️⭐️|
 | [~~[CUDA优化][入门]📖CUDA（一）：CUDA 编程基础~~](https://zhuanlan.zhihu.com/p/645330027)|@紫气东来|⭐️⭐️⭐️|
 | [~~[CUDA优化][入门]📖CUDA（二）：GPU的内存体系及其优化指南~~](https://zhuanlan.zhihu.com/p/654027980)|@紫气东来|⭐️⭐️⭐️|
