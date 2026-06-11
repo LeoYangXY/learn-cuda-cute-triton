@@ -33,8 +33,8 @@
 | [~~[cute系列详解][实践]📖CUTLASS CuTe实战(一): 基础~~](https://zhuanlan.zhihu.com/p/690703999)|@进击的Killua|⭐️⭐️⭐️|
 | [~~[cute系列详解][实践]📖CUTLASS CuTe实战(二): 应用~~](https://zhuanlan.zhihu.com/p/692078624)|@进击的Killua|⭐️⭐️⭐️|
 | [~~[cute系列详解][实践]📖FlashAttention fp8实现（ada架构)~~](https://zhuanlan.zhihu.com/p/712314257)|@shengying.wei|⭐️⭐️⭐️|
-| [[cute系列详解][实践]📖FlashAttention 笔记: tiny-flash-attention解读](https://zhuanlan.zhihu.com/p/708867810)|@shengying.wei|⭐️⭐️⭐️|
-| [[cute系列详解][实践]📖使用cutlass cute复现flash attention](https://zhuanlan.zhihu.com/p/696323042)|@66RING|⭐️⭐️⭐️|
+| [~~[cute系列详解][实践]📖FlashAttention 笔记: tiny-flash-attention解读~~](https://zhuanlan.zhihu.com/p/708867810)|@shengying.wei|⭐️⭐️⭐️|
+| [~~[cute系列详解][实践]📖使用cutlass cute复现flash attention~~](https://zhuanlan.zhihu.com/p/696323042)|@66RING|⭐️⭐️⭐️|
 | [~~[cutlass教程][入门]📖cutlass 基本认知~~](https://zhuanlan.zhihu.com/p/677616101)|@JoeNomad|⭐️⭐️⭐️|
 | [~~[cutlass教程][入门]📖cutlass 软件架构~~](https://zhuanlan.zhihu.com/p/678915618)|@JoeNomad|⭐️⭐️⭐️|
 | [~~[cutlass教程][入门]📖CUTLASS 基础介绍~~](https://zhuanlan.zhihu.com/p/671324125)|@进击的Killua|⭐️⭐️⭐️|
