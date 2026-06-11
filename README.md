@@ -45,7 +45,7 @@
 | [~~[GPU指令集架构][精解]📖NVidia GPU指令集架构-前言~~](https://zhuanlan.zhihu.com/p/686198447)|@reed|⭐️⭐️⭐️|
 | [~~[GPU指令集架构][精解]📖NVidia GPU指令集架构-寄存器~~](https://zhuanlan.zhihu.com/p/688616037)|@reed|⭐️⭐️⭐️|
 | [~~[GPU指令集架构][精解]📖NVidia GPU指令集架构-Load和Cache~~](https://zhuanlan.zhihu.com/p/692445145)|@reed|⭐️⭐️⭐️|
-| [[GPU指令集架构][精解]📖NVidia GPU指令集架构-浮点运算](https://zhuanlan.zhihu.com/p/695667044)|@reed|⭐️⭐️⭐️|
+| [~~[GPU指令集架构][精解]📖NVidia GPU指令集架构-浮点运算~~](https://zhuanlan.zhihu.com/p/695667044)|@reed|⭐️⭐️⭐️|
 | [[GPU指令集架构][精解]📖NVidia GPU指令集架构-整数运算](https://zhuanlan.zhihu.com/p/700921948)|@reed|⭐️⭐️⭐️|
 | [[GPU指令集架构][精解]📖NVidia GPU指令集架构-比特和逻辑操作](https://zhuanlan.zhihu.com/p/712356884)|@reed|⭐️⭐️⭐️|
 | [[GPU指令集架构][精解]📖NVidia GPU指令集架构-Warp级和Uniform操作](https://zhuanlan.zhihu.com/p/712357647)|@reed|⭐️⭐️⭐️|
