@@ -179,3 +179,45 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     TORCH_BINDING_COMMON_EXTENSION(torch_layer_norm_f32)
     TORCH_BINDING_COMMON_EXTENSION(torch_layer_norm_float4)
 }
+
+// ==================== TODO: 待实现的优化版本 ====================
+//
+// TODO V3: Thread Coarsening + 支持任意K
+//   - 当前实现要求 K <= blockDim.x（或 K <= blockDim.x*4），无法处理大 hidden_size（如768, 1024, 4096）
+//   - 优化方法：每个 thread 用 for 循环处理多个元素：
+//       float sum = 0.0f;
+//       for (int i = threadIdx.x; i < K; i += blockDim.x) { sum += x[row*K + i]; }
+//   - 这样 block_size 可以固定为 128/256，K 可以任意大
+//
+// TODO V4: 合并均值和方差的计算（利用 var(x) = E[x²] - E[x]² ）
+//   - 当前实现需要两次 reduce：第一次求 mean，第二次求 var（依赖 mean 结果）
+//   - 优化方法：在一次遍历中同时累加 sum(x) 和 sum(x²)，只需一次 reduce（两个值）
+//       float sum = 0.0f, sum2 = 0.0f;
+//       for (int i = tid; i < K; i += blockDim.x) {
+//           float xi = x[row*K + i];
+//           sum += xi;
+//           sum2 += xi * xi;
+//       }
+//       sum = block_reduce_sum(sum);
+//       sum2 = block_reduce_sum(sum2);
+//       float mean = sum / K;
+//       float var = sum2 / K - mean * mean;
+//   - 收益：省掉一次 __syncthreads() + 一次 reduce 的延迟
+//
+// TODO V5: 使用 __ldcs/__stcs streaming cache hint
+//   - 对 x 和 y 的访存使用 __ldcs/__stcs，告诉硬件这些数据不会被重复使用
+//   - 这样不会污染 L1/L2 cache，让 weight/bias（如果改为向量版本）能留在 cache 里
+//   - 示例：
+//       float xi = __ldcs(x + row*K + i);
+//       __stcs(y + row*K + i, result);
+//
+// TODO V6: 使用 cooperative_groups API 替代手写 shuffle
+//   - 用 cg::thread_block_tile<32> warp = cg::tiled_partition<32>(block);
+//   - 用 cg::reduce(warp, val, cg::plus<float>{}) 替代手写的 warp_reduce_sum
+//   - 代码更简洁，且编译器可能生成更优的指令（sm80+ 有硬件加速 reduce）
+//
+// TODO V7: 将 γ(g) 和 β(b) 改为逐通道向量（实际 LayerNorm 语义）
+//   - 当前 g 和 b 是标量，实际应用中是 shape=[K] 的向量
+//   - 改为 const float* weight, const float* bias
+//   - 结合 __ldcs 对 x/y 做 streaming，让 weight/bias 留在 cache 中
+//

@@ -262,6 +262,50 @@ __global__ void log_softmax_kernel(const float* input, float* output, int M, int
     }
 }
 
+// ==================== TODO: Additional Optimized Versions ====================
+//
+// TODO V1: Float4 Vectorized Softmax
+//   - Use float4 (128-bit) vectorized load/store in all 3 passes
+//   - reinterpret_cast<const float4*>(row_in)[i] for coalesced 128-bit access
+//   - Handle tail elements (N % 4 != 0) with scalar fallback
+//   - Expected: significant bandwidth improvement on large N
+//
+// TODO V2: Unroll Factor Softmax (UNROLL_FACTOR = 8)
+//   - Each thread processes UNROLL_FACTOR elements per iteration:
+//     for (i = tid; i < N; i += blockDim.x * UNROLL_FACTOR)
+//       #pragma unroll
+//       for (u = 0; u < UNROLL_FACTOR; u++) { ... x[min(N-1, i+u*blockDim.x)] }
+//   - Use register arrays: float reg_array[UNROLL_FACTOR]
+//   - Maximizes Memory Level Parallelism (MLP) by issuing multiple loads in flight
+//   - Combine exp computation and sum accumulation in the same loop (avoid re-reading)
+//   - Expected: hides memory latency, best for large N (e.g. vocab_size=50257)
+//
+// TODO V3: Cache Hint Softmax (__ldcs / __stcs)
+//   - Use __ldcs() for streaming loads (bypass L1/L2 cache on read)
+//   - Use __stcs() for streaming stores (bypass cache on write)
+//   - Softmax is a streaming pattern (each element read/written once),
+//     so bypassing cache avoids polluting L2 for other kernels
+//   - Can combine with float4 vectorization for maximum effect
+//   - Expected: better L2 cache utilization for surrounding kernels
+//
+// TODO V4: Float4 + Unroll + Cache Hints Combined
+//   - Combine all above: float4 vectorized + UNROLL_FACTOR + __ldcs/__stcs
+//   - This is the "ultimate" safe softmax version
+//   - Also merge Pass 2 (sum) and Pass 3 (write) into one pass:
+//     compute exp, accumulate sum, store exp to registers/smem,
+//     then after reduce just multiply by inv_sum and write out
+//     (avoids redundant expf computation in Pass 3)
+//
+// TODO V5: Cooperative Groups Online Softmax
+//   - Use cooperative_groups::tiled_partition<32> for cleaner warp-level code
+//   - Use __align__(8) struct SumMax { float maxval; float sum; } for the pair
+//   - Use cg::reduce(warp, sm_partial, reduce_sum_max_op) for warp reduce
+//   - Multiple warps per block can each handle a separate row (better occupancy)
+//     i.e. grid = ceil(M / warps_per_block), each warp handles one row
+//   - Expected: better occupancy for small-to-medium N, cleaner code
+//
+// ============================================================
+
 // ==================== Torch Bindings ====================
 
 torch::Tensor torch_softmax(torch::Tensor input) {
