@@ -24,7 +24,7 @@
 | [[cutlass教程][深入]📖cutlass 多级流水线](https://zhuanlan.zhihu.com/p/687397095)|@JoeNomad|⭐️⭐️⭐️|
 | [~~[CUDA优化][入门]📖CUDA 入门的正确姿势：how-to-optimize-gemm~~](https://zhuanlan.zhihu.com/p/478846788)|@白牛|⭐️⭐️⭐️|
 
-| [[CUDA优化][实践]📖CUDA（三）：通用矩阵乘法：从入门到熟练](https://zhuanlan.zhihu.com/p/657632577)|@紫气东来|⭐️⭐️⭐️|
+| [~~[CUDA优化][实践]📖CUDA（三）：通用矩阵乘法：从入门到熟练~~](https://zhuanlan.zhihu.com/p/657632577)|@紫气东来|⭐️⭐️⭐️|
 | [~~[CUDA优化][实践]📖ops(1)：LayerNorm 算子的 CUDA 实现与优化~~](https://zhuanlan.zhihu.com/p/694974164)|@紫气东来|⭐️⭐️⭐️|
 | [~~[CUDA优化][实践]📖ops(2)：SoftMax算子的 CUDA 实现~~](https://zhuanlan.zhihu.com/p/695307283)|@紫气东来|⭐️⭐️⭐️|
 | [~~[CUDA优化][实践]📖ops(3)：Cross Entropy 的 CUDA 实现~~](https://zhuanlan.zhihu.com/p/695594396)|@紫气东来|⭐️⭐️⭐️|
@@ -34,7 +34,7 @@
 | [~~[CUDA优化][实践]📖ops(7)：self-attention 的 CUDA 实现及优化 (上)~~](https://zhuanlan.zhihu.com/p/695898274)|@紫气东来|⭐️⭐️⭐️|
 | [~~[CUDA优化][实践]📖ops(8)：self-attention 的 CUDA 实现及优化 (下)~~](https://zhuanlan.zhihu.com/p/696197013)|@紫气东来|⭐️⭐️⭐️|
 | [~~[CUDA优化][实践]📖CUDA（四）：使用 CUDA 实现 Transformer 结构~~](https://zhuanlan.zhihu.com/p/694416583)|@紫气东来|⭐️⭐️⭐️|
-| [[CUDA优化][Copy]📖Async Copy及Memory Barrier指令的功能与实现](https://zhuanlan.zhihu.com/p/685168850)|@Frank Wang|⭐️⭐️⭐️|
+| [~~[CUDA优化][Copy]📖Async Copy及Memory Barrier指令的功能与实现~~](https://zhuanlan.zhihu.com/p/685168850)|@Frank Wang|⭐️⭐️⭐️|
 
 | [~~[GPU通信架构][精解]📖NVIDIA GPGPU（四）- 通信架构~~](https://zhuanlan.zhihu.com/p/680262016)|@Bruce|⭐️⭐️⭐️|
 | [[torch.compile][原理]📖Torch.compile流程解析: 介绍](https://zhuanlan.zhihu.com/p/9418379234)|@StarCap|⭐️⭐️⭐️|
