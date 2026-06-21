@@ -17,7 +17,7 @@
 // .nc  = Non-Coherent (只读, 走 texture/constant cache path)
 // .lu  = Last Use (告诉 cache 这是最后一次用, 可以尽早驱逐)
 
-// ld.global.ca — 默认, 两级 cache
+// [炫技] .ca 是默认行为，等价于普通 *ptr 解引用
 __device__ __forceinline__ float ld_global_ca(const float* ptr) {
     float val;
     asm volatile("ld.global.ca.f32 %0, [%1];\n" : "=f"(val) : "l"(ptr));
@@ -69,6 +69,7 @@ __device__ __forceinline__ void ld_global_cg_v4(float& r0, float& r1, float& r2,
 // .wt = Write-Through (同时写 cache 和 DRAM)
 // .cs = Streaming (不缓存写入)
 
+// [炫技] .wb 是默认行为，等价于普通 *ptr = val
 __device__ __forceinline__ void st_global_wb(float* ptr, float val) {
     asm volatile("st.global.wb.f32 [%0], %1;\n" :: "l"(ptr), "f"(val) : "memory");
 }
@@ -146,6 +147,7 @@ __device__ __forceinline__ void red_global_max_s32(int* addr, int val) {
 // selp.f32 %d, %a, %b, %p → d = p ? a : b
 // 避免 warp divergence: 用 selp 替代 if-else
 
+// [炫技] 等价于三元运算符 pred ? a : b，编译器自动生成 selp
 __device__ __forceinline__ float selp_f32(float a, float b, bool pred) {
     float result;
     asm volatile(
@@ -160,6 +162,7 @@ __device__ __forceinline__ float selp_f32(float a, float b, bool pred) {
     return result;
 }
 
+// [炫技] 等价于三元运算符 pred ? a : b，编译器自动生成 selp
 __device__ __forceinline__ int selp_s32(int a, int b, bool pred) {
     int result;
     asm volatile(
@@ -180,6 +183,7 @@ __device__ __forceinline__ int selp_s32(int a, int b, bool pred) {
 // fma.rn.f32 d, a, b, c → d = a*b + c (单次舍入, 更精确)
 // mad.f32 不保证是 fused 的
 
+// [炫技] 等价于 fmaf(a, b, c) 或 a*b+c (--fmad=true 时编译器自动 fuse)
 __device__ __forceinline__ float fma_rn_f32(float a, float b, float c) {
     float result;
     asm volatile("fma.rn.f32 %0, %1, %2, %3;\n"

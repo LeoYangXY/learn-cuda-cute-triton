@@ -16,14 +16,14 @@
 // 1. FP32 ↔ FP16
 // ============================================================
 
-// FP32 → FP16 (round to nearest)
+// [炫技] 等价于 __float2half_rn(val)
 __device__ __forceinline__ uint16_t cvt_f32_to_f16_rn(float val) {
     uint16_t result;
     asm volatile("cvt.rn.f16.f32 %0, %1;\n" : "=h"(result) : "f"(val));
     return result;
 }
 
-// FP16 → FP32
+// [炫技] 等价于 __half2float(val)
 __device__ __forceinline__ float cvt_f16_to_f32(uint16_t val) {
     float result;
     asm volatile("cvt.f32.f16 %0, %1;\n" : "=f"(result) : "h"(val));
@@ -64,14 +64,14 @@ __device__ __forceinline__ void cvt_f16x2_to_2xf32(uint32_t packed, float& a, fl
 // 2. FP32 ↔ BF16
 // ============================================================
 
-// FP32 → BF16 (round to nearest)
+// [炫技] 等价于 __float2bfloat16_rn(val)
 __device__ __forceinline__ uint16_t cvt_f32_to_bf16_rn(float val) {
     uint16_t result;
     asm volatile("cvt.rn.bf16.f32 %0, %1;\n" : "=h"(result) : "f"(val));
     return result;
 }
 
-// BF16 → FP32
+// [炫技] 等价于 __bfloat162float(val)
 __device__ __forceinline__ float cvt_bf16_to_f32(uint16_t val) {
     float result;
     asm volatile("cvt.f32.bf16 %0, %1;\n" : "=f"(result) : "h"(val));
@@ -192,14 +192,14 @@ __device__ __forceinline__ uint16_t cvt_f32_to_f16_rp(float val) {
 // 5. 整数 ↔ 浮点
 // ============================================================
 
-// int32 → float32 (round to nearest)
+// [炫技] 等价于 (float)val，编译器自动生成 cvt 指令
 __device__ __forceinline__ float cvt_s32_to_f32(int val) {
     float result;
     asm volatile("cvt.rn.f32.s32 %0, %1;\n" : "=f"(result) : "r"(val));
     return result;
 }
 
-// float32 → int32 (round toward zero, 即截断)
+// [炫技] 等价于 (int)val 或 __float2int_rz(val)
 __device__ __forceinline__ int cvt_f32_to_s32_rz(float val) {
     int result;
     asm volatile("cvt.rzi.s32.f32 %0, %1;\n" : "=r"(result) : "f"(val));

@@ -22,31 +22,35 @@
 // ============================================================
 // PTX 中 %tid.x 对应 threadIdx.x，但有时你需要直接读它来避免编译器多余的 mov
 
+// [炫技] 等价于 threadIdx.x，编译器生成相同指令
 __device__ __forceinline__ uint32_t get_thread_id_x() {
     uint32_t tid;
     asm volatile("mov.u32 %0, %tid.x;\n" : "=r"(tid));
     return tid;
 }
 
+// [炫技] 等价于 blockIdx.x，编译器生成相同指令
 __device__ __forceinline__ uint32_t get_block_id_x() {
     uint32_t bid;
     asm volatile("mov.u32 %0, %ctaid.x;\n" : "=r"(bid));
     return bid;
 }
 
+// [炫技] 等价于 gridDim.x，编译器生成相同指令
 __device__ __forceinline__ uint32_t get_grid_dim_x() {
     uint32_t gdim;
     asm volatile("mov.u32 %0, %nctaid.x;\n" : "=r"(gdim));
     return gdim;
 }
 
-// 读取 GPU 时钟 (用于 kernel 内部 profiling)
+// [炫技] 等价于 clock()，CUDA 内置函数
 __device__ __forceinline__ uint32_t get_clock() {
     uint32_t clk;
     asm volatile("mov.u32 %0, %clock;\n" : "=r"(clk));
     return clk;
 }
 
+// [炫技] 等价于 clock64()，CUDA 内置函数
 __device__ __forceinline__ uint64_t get_clock64() {
     uint64_t clk;
     asm volatile("mov.u64 %0, %clock64;\n" : "=l"(clk));
@@ -67,7 +71,7 @@ __device__ __forceinline__ uint32_t get_warpid() {
     return warpid;
 }
 
-// 读取 lane ID (warp 内的线程编号，0-31)
+// [炫技] 等价于 threadIdx.x % 32，编译器自动优化为读 %laneid
 __device__ __forceinline__ uint32_t get_laneid() {
     uint32_t laneid;
     asm volatile("mov.u32 %0, %laneid;\n" : "=r"(laneid));
@@ -98,6 +102,7 @@ __device__ __forceinline__ uint32_t smem_ptr(const void* ptr) {
 // ld.global.v4.f32 → 一次读 128 bits (4 个 float)
 // 等价于 float4 指针解引用，但保证了特定的 cache 行为
 
+// [炫技] 等价于 float4 指针解引用 *reinterpret_cast<float4*>(ptr)，编译器自动向量化
 __device__ __forceinline__ void ld_global_v4_f32(float& r0, float& r1, float& r2, float& r3,
                                                   const void* ptr) {
     asm volatile(
@@ -107,6 +112,7 @@ __device__ __forceinline__ void ld_global_v4_f32(float& r0, float& r1, float& r2
     );
 }
 
+// [炫技] 等价于 *reinterpret_cast<float4*>(ptr) = make_float4(...)
 __device__ __forceinline__ void st_global_v4_f32(void* ptr,
                                                   float r0, float r1, float r2, float r3) {
     asm volatile(
@@ -132,7 +138,7 @@ __device__ __forceinline__ void ld_global_cg_v4_f32(float& r0, float& r1, float&
 // 4. 内存屏障和同步
 // ============================================================
 
-// bar.sync 0 等价于 __syncthreads()
+// [炫技] 等价于 __syncthreads()
 __device__ __forceinline__ void bar_sync() {
     asm volatile("bar.sync 0;\n" ::: "memory");
 }
@@ -147,7 +153,7 @@ __device__ __forceinline__ void fence_sc_gpu() {
     asm volatile("fence.sc.gpu;\n" ::: "memory");
 }
 
-// membar.gl — global memory barrier (保证之前的写对其他 SM 可见)
+// [炫技] 等价于 __threadfence()
 __device__ __forceinline__ void membar_gl() {
     asm volatile("membar.gl;\n" ::: "memory");
 }
@@ -156,7 +162,7 @@ __device__ __forceinline__ void membar_gl() {
 // 5. 原子操作
 // ============================================================
 
-// atom.global.add.f32 — 全局内存浮点原子加
+// [炫技] 等价于 atomicAdd(addr, val)
 __device__ __forceinline__ float atomic_add_f32(float* addr, float val) {
     float ret;
     asm volatile(
@@ -168,7 +174,7 @@ __device__ __forceinline__ float atomic_add_f32(float* addr, float val) {
     return ret;
 }
 
-// atom.global.min.s32 — 全局内存整数原子最小值
+// [炫技] 等价于 atomicMin(addr, val)
 __device__ __forceinline__ int atomic_min_s32(int* addr, int val) {
     int ret;
     asm volatile(
@@ -184,7 +190,7 @@ __device__ __forceinline__ int atomic_min_s32(int* addr, int val) {
 // 6. Warp 投票和 shuffle
 // ============================================================
 
-// vote.sync.ballot — 收集 warp 内所有线程的 predicate
+// [炫技] 等价于 __ballot_sync(mask, pred)
 __device__ __forceinline__ uint32_t ballot_sync(uint32_t mask, int pred) {
     uint32_t result;
     asm volatile(
@@ -199,7 +205,7 @@ __device__ __forceinline__ uint32_t ballot_sync(uint32_t mask, int pred) {
     return result;
 }
 
-// shfl.sync.bfly — butterfly shuffle (等价于 __shfl_xor_sync)
+// [炫技] 等价于 __shfl_xor_sync(mask, val, lane_mask)
 __device__ __forceinline__ float shfl_xor_f32(float val, int lane_mask, uint32_t mask = 0xffffffff) {
     float result;
     asm volatile(
@@ -210,7 +216,7 @@ __device__ __forceinline__ float shfl_xor_f32(float val, int lane_mask, uint32_t
     return result;
 }
 
-// shfl.sync.down — 向下 shuffle (等价于 __shfl_down_sync)
+// [炫技] 等价于 __shfl_down_sync(mask, val, offset)
 __device__ __forceinline__ float shfl_down_f32(float val, int offset, uint32_t mask = 0xffffffff) {
     float result;
     asm volatile(
