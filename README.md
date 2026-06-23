@@ -10,20 +10,20 @@
 
 |📖 类型-标题|📖 作者| 📖 推荐 |
 |:---|:---|:---|
-| [[cute系列详解][Swizzle]📖cute Swizzle细谈](https://zhuanlan.zhihu.com/p/684250988)|@进击的Killua|⭐️⭐️⭐️|
-| [[cute系列详解][Swizzle]📖cutlass swizzle机制解析（一）](https://zhuanlan.zhihu.com/p/710337546)|@Titus|⭐️⭐️⭐️|
-| [[cute系列详解][Swizzle]📖cutlass swizzle机制解析（二）](https://zhuanlan.zhihu.com/p/711398930)|@Titus|⭐️⭐️⭐️|
-| [[cute系列详解][Swizzle]📖CUDA避免smem bank conflict的swizzle机制解析](https://zhuanlan.zhihu.com/p/4746910252)|@frankshi|⭐️⭐️⭐️|
-| [[cute系列详解][GEMM]📖GEMM流水线: single/multi-stage、pipeline](https://zhuanlan.zhihu.com/p/712451053)|@Titus|⭐️⭐️⭐️|
-| [[cute系列详解][GEMM]📖GEMM细节分析(一): ldmatrix的选择](https://zhuanlan.zhihu.com/p/702818267)|@Anonymous|⭐️⭐️⭐️|
-| [[cute系列详解][GEMM]📖GEMM细节分析(二): TiledCopy与cp.async](https://zhuanlan.zhihu.com/p/703560147)|@Anonymous|⭐️⭐️⭐️|
-| [[cute系列详解][GEMM]📖GEMM细节分析(三): Swizzle<B,M,S>参数取值](https://zhuanlan.zhihu.com/p/713713957)|@Anonymous|⭐️⭐️⭐️|
-| [[cute系列详解][实践]📖Hopper Mixed GEMM的CUTLASS实现笔记](https://zhuanlan.zhihu.com/p/714378343)|@BBuf|⭐️⭐️⭐️|
-| [[cutlass教程][深入]📖cutlass block swizzle 和 tile iterator](https://zhuanlan.zhihu.com/p/679929705)|@JoeNomad|⭐️⭐️⭐️|
-| [[cutlass教程][深入]📖cutlass bank conflict free的smem layout](https://zhuanlan.zhihu.com/p/681966685)|@JoeNomad|⭐️⭐️⭐️|
-| [[cutlass教程][深入]📖cutlass 多级流水线](https://zhuanlan.zhihu.com/p/687397095)|@JoeNomad|⭐️⭐️⭐️|
-| [~~[CUDA优化][入门]📖CUDA 入门的正确姿势：how-to-optimize-gemm~~](https://zhuanlan.zhihu.com/p/478846788)|@白牛|⭐️⭐️⭐️|
+| ~~[[cute系列详解][Swizzle]📖cute Swizzle细谈~~](https://zhuanlan.zhihu.com/p/684250988)|@进击的Killua|⭐️⭐️⭐️|
+| [~~[cute系列详解][Swizzle]📖cutlass swizzle机制解析（一）~~](https://zhuanlan.zhihu.com/p/710337546)|@Titus|⭐️⭐️⭐️|
+| [~~[cute系列详解][Swizzle]📖cutlass swizzle机制解析（二）~~](https://zhuanlan.zhihu.com/p/711398930)|@Titus|⭐️⭐️⭐️|
+| [~~[cute系列详解][Swizzle]📖CUDA避免smem bank conflict的swizzle机制解析~~](https://zhuanlan.zhihu.com/p/4746910252)|@frankshi|⭐️⭐️⭐️|
+| [~~[cute系列详解][GEMM]📖GEMM细节分析(三): Swizzle<B,M,S>参数取值~~](https://zhuanlan.zhihu.com/p/713713957)|@Anonymous|⭐️⭐️⭐️|
+| [~~[cutlass教程][深入]📖cutlass block swizzle 和 tile iterator~~](https://zhuanlan.zhihu.com/p/679929705)|@JoeNomad|⭐️⭐️⭐️|
+| [~~[cutlass教程][深入]📖cutlass bank conflict free的smem layout~~](https://zhuanlan.zhihu.com/p/681966685)|@JoeNomad|⭐️⭐️⭐️|
 
+| [~~[cute系列详解][GEMM]📖GEMM流水线: single/multi-stage、pipeline~~](https://zhuanlan.zhihu.com/p/712451053)|@Titus|⭐️⭐️⭐️|
+| [~~[cute系列详解][GEMM]📖GEMM细节分析(一): ldmatrix的选择~~](https://zhuanlan.zhihu.com/p/702818267)|@Anonymous|⭐️⭐️⭐️|
+| [~~[cute系列详解][GEMM]📖GEMM细节分析(二): TiledCopy与cp.async~~](https://zhuanlan.zhihu.com/p/703560147)|@Anonymous|⭐️⭐️⭐️|
+| [~~[cute系列详解][实践]📖Hopper Mixed GEMM的CUTLASS实现笔记~~](https://zhuanlan.zhihu.com/p/714378343)|@BBuf|⭐️⭐️⭐️|
+| [~~[cutlass教程][深入]📖cutlass 多级流水线~~](https://zhuanlan.zhihu.com/p/687397095)|@JoeNomad|⭐️⭐️⭐️|
+| [~~[CUDA优化][入门]📖CUDA 入门的正确姿势：how-to-optimize-gemm~~](https://zhuanlan.zhihu.com/p/478846788)|@白牛|⭐️⭐️⭐️|
 | [~~[CUDA优化][实践]📖CUDA（三）：通用矩阵乘法：从入门到熟练~~](https://zhuanlan.zhihu.com/p/657632577)|@紫气东来|⭐️⭐️⭐️|
 | [~~[CUDA优化][实践]📖ops(1)：LayerNorm 算子的 CUDA 实现与优化~~](https://zhuanlan.zhihu.com/p/694974164)|@紫气东来|⭐️⭐️⭐️|
 | [~~[CUDA优化][实践]📖ops(2)：SoftMax算子的 CUDA 实现~~](https://zhuanlan.zhihu.com/p/695307283)|@紫气东来|⭐️⭐️⭐️|
@@ -35,17 +35,7 @@
 | [~~[CUDA优化][实践]📖ops(8)：self-attention 的 CUDA 实现及优化 (下)~~](https://zhuanlan.zhihu.com/p/696197013)|@紫气东来|⭐️⭐️⭐️|
 | [~~[CUDA优化][实践]📖CUDA（四）：使用 CUDA 实现 Transformer 结构~~](https://zhuanlan.zhihu.com/p/694416583)|@紫气东来|⭐️⭐️⭐️|
 | [~~[CUDA优化][Copy]📖Async Copy及Memory Barrier指令的功能与实现~~](https://zhuanlan.zhihu.com/p/685168850)|@Frank Wang|⭐️⭐️⭐️|
-
 | [~~[GPU通信架构][精解]📖NVIDIA GPGPU（四）- 通信架构~~](https://zhuanlan.zhihu.com/p/680262016)|@Bruce|⭐️⭐️⭐️|
-| [[torch.compile][原理]📖Torch.compile流程解析: 介绍](https://zhuanlan.zhihu.com/p/9418379234)|@StarCap|⭐️⭐️⭐️|
-| [[torch.compile][原理]📖Torch.compile流程解析: TorchDynamo](https://zhuanlan.zhihu.com/p/9640728231)|@StarCap|⭐️⭐️⭐️|
-| [[torch.compile][原理]📖Torch.compile流程解析: AOTAutograd](https://zhuanlan.zhihu.com/p/9997263922)|@StarCap|⭐️⭐️⭐️|
-| [[torch.compile][原理]📖Torch.compile流程解析: TorchInductor](https://zhuanlan.zhihu.com/p/11224299472)|@StarCap|⭐️⭐️⭐️|
-| [[torch.compile][原理]📖Torch.compile流程解析: 算子融合](https://zhuanlan.zhihu.com/p/21053905491)|@StarCap|⭐️⭐️⭐️|
-| [[torch.compile][实践]📖Torch.compile使用指南](https://zhuanlan.zhihu.com/p/620163218)|@jhang|⭐️⭐️⭐️|
-| [[torch.compile][实践]📖Torch.compile详细示例解析教程](https://zhuanlan.zhihu.com/p/855291863)|@Bbuf|⭐️⭐️⭐️|
-| [[torch.compile][原理]📖一文搞懂TorchDynamo原理](https://zhuanlan.zhihu.com/p/630933479)|@吾乃阿尔法|⭐️⭐️⭐️|
-| [[torch.compile][原理]📖理解torch.compile基本原理和使用方式](https://zhuanlan.zhihu.com/p/12712224407)|@俯仰|⭐️⭐️⭐️|
 | [~~[cute系列详解][入门]📖cutlass cute 101~~](https://zhuanlan.zhihu.com/p/660379052)|@朱小霖|⭐️⭐️⭐️|
 | [~~[cute系列详解][入门]📖CUTLASS 2.x & CUTLASS 3.x Intro 学习笔记~~](https://zhuanlan.zhihu.com/p/710516489)|@BBuf|⭐️⭐️⭐️|
 | [~~[cute系列详解][Layout]📖cute 之 Layout~~](https://zhuanlan.zhihu.com/p/661182311)|@reed|⭐️⭐️⭐️|
@@ -94,16 +84,21 @@
 |:---|:---|:---|
 | [~~[Triton编程][基础]📖Triton极简入门: Triton Vector Add~~](https://zhuanlan.zhihu.com/p/1902778199261291694)|@DefTruth|⭐️⭐️⭐|
 | [~~[Triton编程][基础]📖Triton Fused Softmax Kernel详解: 从Python源码到PTX~~](https://zhuanlan.zhihu.com/p/1899562146477609112)|@DefTruth|⭐️⭐️⭐|
-| [[Triton编程][基础]📖vLLM Triton Merge Attention States Kernel详解](https://zhuanlan.zhihu.com/p/1904937907703243110)|@DefTruth|⭐️⭐️⭐|
-| [[Triton编程][进阶]📖vLLM Prefix Prefill Triton Kernel图解](https://zhuanlan.zhihu.com/p/695799736)|@DefTruth|⭐️⭐️⭐️|
-
+| [~~[Triton编程][基础]📖vLLM Triton Merge Attention States Kernel详解~~](https://zhuanlan.zhihu.com/p/1904937907703243110)|@DefTruth|⭐️⭐️⭐|
+| [~~[Triton编程][进阶]📖vLLM Prefix Prefill Triton Kernel图解~~](https://zhuanlan.zhihu.com/p/695799736)|@DefTruth|⭐️⭐️⭐️|
 | [~~[vLLM实践][算子]📖vLLM算子开发流程：”保姆级“详细记录~~](https://zhuanlan.zhihu.com/p/1892966682634473987)|@DefTruth|⭐️⭐️⭐|
+| [~~[LLM推理优化][CUDA][3w字]📖高频面试题汇总-大模型手撕CUDA~~](https://zhuanlan.zhihu.com/p/678903537)|@DefTruth|⭐️⭐️⭐️|
 
-| [[分布式训推][张量/序列并行]📖图解DeepSpeed-Ulysses&Megatron-LM TP/SP](https://zhuanlan.zhihu.com/p/5750410146)|@DefTruth|⭐️⭐️|
-| [[VLM推理优化][InternVL系列]📖InternLM2/.../InternVL1.5系列笔记: 核心点解析](https://zhuanlan.zhihu.com/p/702481058)|@DefTruth|⭐️⭐️|
-
-| [[LLM推理优化][CUDA][3w字]📖高频面试题汇总-大模型手撕CUDA](https://zhuanlan.zhihu.com/p/678903537)|@DefTruth|⭐️⭐️⭐️|
 | [[技术随笔][C++][3W字]📖静态链接和静态库实践指北-原理篇](https://zhuanlan.zhihu.com/p/595527528)|@DefTruth|⭐️⭐️⭐️|
 
+| [[torch.compile][原理]📖Torch.compile流程解析: 介绍](https://zhuanlan.zhihu.com/p/9418379234)|@StarCap|⭐️⭐️⭐️|
+| [[torch.compile][原理]📖Torch.compile流程解析: TorchDynamo](https://zhuanlan.zhihu.com/p/9640728231)|@StarCap|⭐️⭐️⭐️|
+| [[torch.compile][原理]📖Torch.compile流程解析: AOTAutograd](https://zhuanlan.zhihu.com/p/9997263922)|@StarCap|⭐️⭐️⭐️|
+| [[torch.compile][原理]📖Torch.compile流程解析: TorchInductor](https://zhuanlan.zhihu.com/p/11224299472)|@StarCap|⭐️⭐️⭐️|
+| [[torch.compile][原理]📖Torch.compile流程解析: 算子融合](https://zhuanlan.zhihu.com/p/21053905491)|@StarCap|⭐️⭐️⭐️|
+| [[torch.compile][实践]📖Torch.compile使用指南](https://zhuanlan.zhihu.com/p/620163218)|@jhang|⭐️⭐️⭐️|
+| [[torch.compile][实践]📖Torch.compile详细示例解析教程](https://zhuanlan.zhihu.com/p/855291863)|@Bbuf|⭐️⭐️⭐️|
+| [[torch.compile][原理]📖一文搞懂TorchDynamo原理](https://zhuanlan.zhihu.com/p/630933479)|@吾乃阿尔法|⭐️⭐️⭐️|
+| [[torch.compile][原理]📖理解torch.compile基本原理和使用方式](https://zhuanlan.zhihu.com/p/12712224407)|@俯仰|⭐️⭐️⭐️|
 
 
