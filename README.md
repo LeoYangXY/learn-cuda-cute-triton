@@ -89,7 +89,7 @@
 | [~~[vLLM实践][算子]📖vLLM算子开发流程：”保姆级“详细记录~~](https://zhuanlan.zhihu.com/p/1892966682634473987)|@DefTruth|⭐️⭐️⭐|
 | [~~[LLM推理优化][CUDA][3w字]📖高频面试题汇总-大模型手撕CUDA~~](https://zhuanlan.zhihu.com/p/678903537)|@DefTruth|⭐️⭐️⭐️|
 
-| [[技术随笔][C++][3W字]📖静态链接和静态库实践指北-原理篇](https://zhuanlan.zhihu.com/p/595527528)|@DefTruth|⭐️⭐️⭐️|
+| [~~[技术随笔][C++][3W字]📖静态链接和静态库实践指北-原理篇~~](https://zhuanlan.zhihu.com/p/595527528)|@DefTruth|⭐️⭐️⭐️|
 
 | [[torch.compile][原理]📖Torch.compile流程解析: 介绍](https://zhuanlan.zhihu.com/p/9418379234)|@StarCap|⭐️⭐️⭐️|
 | [[torch.compile][原理]📖Torch.compile流程解析: TorchDynamo](https://zhuanlan.zhihu.com/p/9640728231)|@StarCap|⭐️⭐️⭐️|
