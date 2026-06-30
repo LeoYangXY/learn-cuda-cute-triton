@@ -1,0 +1,4 @@
+# 构建依赖：ninja 用于 JIT 编译你的 CUDA 扩展，packaging 用于 flash-attn 构建。
+# torch / flash-attn 由 setup_env.sh 显式安装到兼容 FA3 的版本，这里不再固定 torch。
+ninja
+packaging
